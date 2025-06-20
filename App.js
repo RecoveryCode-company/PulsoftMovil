@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import auth from '@react-native-firebase/auth'; // Asegúrate de que esta importación sea correcta
+import auth from '@react-native-firebase/auth';
 
-// Importa tus nuevas pantallas
 import LoginScreen from './screens/LoginScreen';
 import Notes from './screens/Notes';
 import RegisterScreen from './screens/RegisterScreen';

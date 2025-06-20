@@ -1,15 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import firestore from '@react-native-firebase/firestore'; 
+import auth from '@react-native-firebase/auth'; 
 import { View, Text, Button, StyleSheet, TextInput , Alert} from 'react-native';
+
 
 function Notes({ navigation }) {
   const [noteText, setNoteText] = useState('');
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const currentUser = auth().currentUser; 
+    if (currentUser) {
+      setUser(currentUser);
+    } else {
+      Alert.alert('Error', 'No hay usuario autenticado. Por favor, inicia sesión.');
+      navigation.navigate('Login'); 
+    }
+  }, []);
 
   const onChangeNoteText = (text) => {
     setNoteText(text);
   };
 
   const handleSendNote = async () => { 
+    if (!user) {
+      Alert.alert('Error', 'No hay usuario autenticado para guardar la nota.');
+      return;
+    }
+
     if (noteText.trim().length === 0) {
       Alert.alert('Error', 'Por favor, escribe algo en la nota antes de enviarla.');
       return; 
@@ -17,13 +35,15 @@ function Notes({ navigation }) {
 
     try {
       await firestore()
-        .collection('usuarios') 
+        .collection('users')    
+        .doc(user.uid)          
+        .collection('notes')    
         .add({
           content: noteText, 
           createdAt: firestore.FieldValue.serverTimestamp(), 
         });
 
-      Alert.alert('Éxito', 'Nota guardada en Firestore correctamente.');
+      Alert.alert('Éxito', 'Nota guardada en tu perfil correctamente.'); // Mensaje más específico
       setNoteText(''); 
     } catch (error) {
       console.error("Error al guardar la nota en Firestore: ", error);
@@ -53,8 +73,8 @@ function Notes({ navigation }) {
         />
         <View style={styles.buttonSpacer} />
         <Button
-          title='Volver al login'
-          onPress={() => navigation.navigate('login')}
+          title='Ver Mis Notas' 
+          onPress={() => navigation.navigate('Analytic')} 
           color="#007bff"
         />
       </View>

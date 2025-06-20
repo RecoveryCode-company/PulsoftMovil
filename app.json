@@ -26,9 +26,6 @@
       "googleServicesFile": "./google-services.json",
       "package": "com.RecoveryCode.Pulsoft"
     },
-    "web": {
-      "favicon": "./assets/logo.jpg"
-    },
     "plugins": [
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
