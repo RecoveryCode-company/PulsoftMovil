@@ -7,6 +7,7 @@ import LoginScreen from './screens/LoginScreen';
 import Notes from './screens/Notes';
 import RegisterScreen from './screens/RegisterScreen';
 import analytic from './screens/analytic';
+import Home from './screens/home';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,6 +34,7 @@ function App() {
           <Stack.Group>
             <Stack.Screen name="Notas" component={Notes} />
             <Stack.Screen name="Analytic" component={analytic} /> 
+            <Stack.Screen name="Home" component={Home} /> 
           </Stack.Group>
         ) : (
           <Stack.Group>
