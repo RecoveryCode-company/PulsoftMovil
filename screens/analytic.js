@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { getFirestore, collection, query, orderBy, onSnapshot, doc } from 'firebase/firestore';
+import { auth } from '../firebaseConfig'; 
 
 function Analytic({ navigation }) {
   const [notes, setNotes] = useState([]);
@@ -9,31 +9,29 @@ function Analytic({ navigation }) {
   const [user, setUser] = useState(null); 
 
   useEffect(() => {
-    const currentUser = auth().currentUser; 
+    const currentUser = auth.currentUser; 
+    
     if (currentUser) {
       setUser(currentUser);
-      const subscriber = firestore()
-        .collection('users')
-        .doc(currentUser.uid) 
-        .collection('analisis_clinicos') 
-        .orderBy('createdAt', 'desc') 
-        .onSnapshot(querySnapshot => {
-          const fetchedNotes = [];
-          querySnapshot.forEach(documentSnapshot => {
-            fetchedNotes.push({
-              id: documentSnapshot.id,
-              ...documentSnapshot.data(),
-            });
+      const db = getFirestore();
+      const userNotesCollectionRef = collection(doc(collection(db, 'users'), currentUser.uid), 'analisis_clinicos');
+      const q = query(userNotesCollectionRef, orderBy('createdAt', 'desc'));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const fetchedNotes = [];
+        querySnapshot.forEach(documentSnapshot => {
+          fetchedNotes.push({
+            id: documentSnapshot.id,
+            ...documentSnapshot.data(),
           });
-          setNotes(fetchedNotes);
-          setLoading(false); 
-        }, error => {
-          console.error('Error al obtener las notas:', error);
-          Alert.alert('Error', 'No se pudieron cargar tus notas. Inténtalo de nuevo.');
-          setLoading(false);
         });
-
-      return () => subscriber();
+        setNotes(fetchedNotes);
+        setLoading(false); 
+      }, (error) => {
+        console.error('Error al obtener las notas:', error);
+        Alert.alert('Error', 'No se pudieron cargar tus notas. Inténtalo de nuevo.');
+        setLoading(false);
+      });
+      return () => unsubscribe();
     } else {
       Alert.alert('Error', 'No hay usuario autenticado para ver las notas. Por favor, inicia sesión.');
       navigation.navigate('Login');
@@ -65,6 +63,7 @@ function Analytic({ navigation }) {
               <Text style={styles.noteContent}>{item.content}</Text>
               {item.createdAt && ( 
                 <Text style={styles.noteDate}>
+                  {/* Firestore Timestamp tiene un método toDate() */}
                   {new Date(item.createdAt.toDate()).toLocaleString()}
                 </Text>
               )}
@@ -77,10 +76,16 @@ function Analytic({ navigation }) {
       <View style={styles.buttonWrapper}>
         <Button
           title='Volver a la sección de notas'
-          onPress={() => navigation.navigate('Notas')}
+          onPress={() => navigation.navigate('Notes')} // Asegúrate de que 'Notes' sea el nombre correcto de la ruta
           color="#007bff"
         />
       </View>
+      <View style={styles.buttonaPocer} />
+            <Button
+              title='Volver al inicio' 
+              onPress={() => navigation.navigate('Dashboards')} 
+              color="#28a745"
+          />
     </View>
   );
 }
@@ -146,6 +151,9 @@ const styles = StyleSheet.create({
     marginTop: 20, 
     marginBottom: 20,
   },
+  buttonaPocer:{
+    height:15,
+  }
 });
 
 export default Analytic;

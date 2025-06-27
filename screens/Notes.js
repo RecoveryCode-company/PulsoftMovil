@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import firestore from '@react-native-firebase/firestore'; 
-import auth from '@react-native-firebase/auth'; 
-import { View, Text, Button, StyleSheet, TextInput , Alert} from 'react-native';
+import { View, Text, Button, StyleSheet, TextInput, Alert, TouchableOpacity } from 'react-native';
 
+import { auth, firestore } from '../firebaseConfig'; 
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'; 
 
 function Notes({ navigation }) {
   const [noteText, setNoteText] = useState('');
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const currentUser = auth().currentUser; 
+    // Obtener el usuario actual de la instancia 'auth' del SDK web
+    const currentUser = auth.currentUser; 
     if (currentUser) {
       setUser(currentUser);
     } else {
@@ -34,16 +35,13 @@ function Notes({ navigation }) {
     }
 
     try {
-      await firestore()
-        .collection('users')    
-        .doc(user.uid)          
-        .collection('notes')    
-        .add({
-          content: noteText, 
-          createdAt: firestore.FieldValue.serverTimestamp(), 
-        });
+      // Guardar la nota usando las funciones modulares de Firestore
+      await addDoc(collection(firestore, 'users', user.uid, 'notes'), {
+        content: noteText, 
+        createdAt: serverTimestamp(), // Uso de serverTimestamp del SDK web
+      });
 
-      Alert.alert('Éxito', 'Nota guardada en tu perfil correctamente.'); // Mensaje más específico
+      Alert.alert('Éxito', 'Nota guardada en tu perfil correctamente.'); 
       setNoteText(''); 
     } catch (error) {
       console.error("Error al guardar la nota en Firestore: ", error);
@@ -76,6 +74,12 @@ function Notes({ navigation }) {
           title='Ver Mis Notas' 
           onPress={() => navigation.navigate('Analytic')} 
           color="#007bff"
+        />
+        <View style={styles.buttonaPocer} />
+        <Button
+          title='Volver al inicio' 
+          onPress={() => navigation.navigate('Dashboards')} 
+          color="#28a745"
         />
       </View>
     </View>
@@ -124,6 +128,9 @@ const styles = StyleSheet.create({
   buttonSpacer: {
     height: 15,
   },
+  buttonaPocer:{
+    height:10,
+  }
 });
 
 export default Notes;

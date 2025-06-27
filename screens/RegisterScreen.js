@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import auth from '@react-native-firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth'; // Importa la función de registro
+import { auth } from '../firebaseConfig'; // Importa la instancia de auth
 
 function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -24,7 +25,8 @@ function RegisterScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await auth().createUserWithEmailAndPassword(email, password);
+      // Usa createUserWithEmailAndPassword directamente con la instancia de auth
+      await createUserWithEmailAndPassword(auth, email, password);
       Alert.alert("¡Registro Exitoso!", "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.");
       navigation.navigate('Login'); 
     } catch (error) {
