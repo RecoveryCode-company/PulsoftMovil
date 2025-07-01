@@ -1,12 +1,23 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { createUserWithEmailAndPassword } from 'firebase/auth'; 
-import { auth } from '../firebaseConfig'; 
+import { auth, firestore } from '../firebaseConfig'; 
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+
+const generateToken = (length = 6) => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
 
 function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState('paciente');
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
@@ -19,14 +30,28 @@ function RegisterScreen({ navigation }) {
       return;
     }
     if (password.length < 6) {
-        Alert.alert("Error", "La contraseña debe tener al menos 6 caracteres.");
-        return;
+      Alert.alert("Error", "La contraseña debe tener al menos 6 caracteres.");
+      return;
     }
 
     setLoading(true);
     try {
-      // Usa createUserWithEmailAndPassword directamente con la instancia de auth
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      const userData = {
+        role: role,
+        createdAt: serverTimestamp(),
+      };
+
+      // Si el rol es paciente, generar un token
+      if (role === 'paciente') {
+        userData.pairingToken = generateToken(6); // Genera un token como "A1B2C3"
+      }
+
+      // Guardar rol (y token si aplica) en Firestore
+      await setDoc(doc(firestore, 'users', user.uid), userData);
+
       Alert.alert("¡Registro Exitoso!", "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.");
       navigation.navigate('Login'); 
     } catch (error) {
@@ -50,6 +75,7 @@ function RegisterScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Registrarse</Text>
+
       <TextInput
         style={styles.input}
         placeholder="Correo Electrónico"
@@ -72,7 +98,23 @@ function RegisterScreen({ navigation }) {
         value={confirmPassword}
         onChangeText={setConfirmPassword}
       />
-      
+
+      {/* Selector de Rol */}
+      <View style={styles.roleContainer}>
+        <TouchableOpacity
+          style={[styles.roleButton, role === 'paciente' && styles.selectedRole]}
+          onPress={() => setRole('paciente')}
+        >
+          <Text style={styles.roleText}>Paciente</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.roleButton, role === 'cuidador' && styles.selectedRole]}
+          onPress={() => setRole('cuidador')}
+        >
+          <Text style={styles.roleText}>Cuidador</Text>
+        </TouchableOpacity>
+      </View>
+
       <Button
         title={loading ? "Registrando..." : "Registrarse"}
         onPress={handleRegister}
@@ -123,6 +165,24 @@ const styles = StyleSheet.create({
     color: '#007bff',
     fontSize: 16,
     textDecorationLine: 'underline',
+  },
+  roleContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  roleButton: {
+    backgroundColor: '#ccc',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 5,
+    borderRadius: 8,
+  },
+  selectedRole: {
+    backgroundColor: '#007bff',
+  },
+  roleText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 
