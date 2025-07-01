@@ -88,13 +88,18 @@ function Dashboards({ navigation }) {
         <>
           <Button
             title="Escribir nota"
-            onPress={() => navigation.navigate('Notes')}
+            onPress={() => navigation.replace('Notes')}
+            color="#007bff"
+          />
+          <Button
+            title="Escribir nota"
+            onPress={() => navigation.replace('Analytic')}
             color="#007bff"
           />
           <View style={styles.buttonSpacer} />
           <Button
             title="Ver código de cuidador"
-            onPress={() => navigation.navigate('PatientToken')}
+            onPress={() => navigation.replace('PatientToken')}
             color="#6c757d"
           />
         </>
@@ -102,8 +107,13 @@ function Dashboards({ navigation }) {
         <>
           <Button
             title="Vincular con paciente"
-            onPress={() => navigation.navigate('CaregiverLink')}
+            onPress={() => navigation.replace('CaregiverLink')}
             color="#28a745"
+          />
+          <Button
+            title="Escribir nota"
+            onPress={() => navigation.replace('Analytic')}
+            color="#007bff"
           />
         </>
       ) : null}

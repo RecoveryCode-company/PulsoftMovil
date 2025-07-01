@@ -63,7 +63,7 @@ function LoginScreen({ navigation }) {
 
       <TouchableOpacity
         style={styles.linkButton}
-        onPress={() => navigation.navigate('Register')} 
+        onPress={() => navigation.replace('Register')} 
         disabled={loading}
       >
         <Text style={styles.linkText}>¿No tienes cuenta? Regístrate</Text>

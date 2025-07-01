@@ -42,6 +42,12 @@ function PatientTokenScreen() {
       <Text style={styles.instructions}>
         Compártelo con tu cuidador para que pueda acceder a tus datos.
       </Text>
+      <View style={styles.buttonSpacer} />
+      <Button
+        title="Ver código de cuidador"
+        onPress={() => navigation.replace('PatientToken')}
+        color="#6c757d"
+      />
     </View>
   );
 }
@@ -52,6 +58,9 @@ const styles = StyleSheet.create({
   token: { fontSize:36, fontWeight:'bold', color:'#007bff', marginBottom:20 },
   instructions: { fontSize:16, color:'#555', textAlign:'center', paddingHorizontal:20 },
   text: { fontSize:18, color:'#555', marginTop:15 },
+  buttonSpacer: {
+    height: 20,
+  },
 });
 
 export default PatientTokenScreen;

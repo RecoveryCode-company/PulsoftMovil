@@ -76,14 +76,14 @@ function Analytic({ navigation }) {
       <View style={styles.buttonWrapper}>
         <Button
           title='Volver a la sección de notas'
-          onPress={() => navigation.navigate('Notes')}
+          onPress={() => navigation.replace('Notes')}
           color="#007bff"
         />
       </View>
       <View style={styles.buttonaPocer} />
             <Button
               title='Volver al inicio' 
-              onPress={() => navigation.navigate('Dashboards')} 
+              onPress={() => navigation.replace('Dashboards')} 
               color="#28a745"
           />
     </View>

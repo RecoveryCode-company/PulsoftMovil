@@ -51,8 +51,8 @@ function Notes({ navigation }) {
     <View style={styles.container}>
       <Text style={styles.title}>Sección de Notas</Text>
 
-      <TextInput
-        style={styles.input}
+      <TextInput 
+        style={styles.input} 
         onChangeText={onChangeNoteText}
         value={noteText}
         placeholder='Escribe tu nota aquí...'
@@ -70,13 +70,13 @@ function Notes({ navigation }) {
         <View style={styles.buttonSpacer} />
         <Button
           title='Ver Mis Notas' 
-          onPress={() => navigation.navigate('Analytic')} 
+          onPress={() => navigation.replace('Analytic')} 
           color="#007bff"
         />
         <View style={styles.buttonaPocer} />
         <Button
           title='Volver al inicio' 
-          onPress={() => navigation.navigate('Dashboards')} 
+          onPress={() => navigation.replace('Dashboards')} 
           color="#28a745"
         />
       </View>
