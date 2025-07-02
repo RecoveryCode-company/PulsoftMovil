@@ -17,7 +17,7 @@ function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigation.navigate('Dashboards'); 
+      navigation.replace('Dashboards'); 
     } catch (error) {
       let errorMessage = "Ocurrió un error al iniciar sesión.";
       if (error.code === 'auth/invalid-email') {
