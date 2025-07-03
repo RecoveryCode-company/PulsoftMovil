@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Button, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Button, ActivityIndicator, Alert } from 'react-native';
 import { ref, onValue } from 'firebase/database';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, database, firestore } from '../firebaseConfig';
+import { auth, database, firestore } from '../firebaseConfig'; // Asegúrate de que 'auth' se exporta desde firebaseConfig
+import { signOut } from 'firebase/auth'; // Importa signOut
 
 function Dashboards({ navigation }) {
   const [userRole, setUserRole] = useState(null);
@@ -16,7 +17,11 @@ function Dashboards({ navigation }) {
 
   useEffect(() => {
     const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    if (!currentUser) {
+      // Si no hay usuario, redirigir a la pantalla de inicio de sesión
+      navigation.replace('Login'); // Asume que tienes una ruta 'Login'
+      return;
+    }
 
     const fetchUserData = async () => {
       const userRef = doc(firestore, 'users', currentUser.uid);
@@ -37,7 +42,7 @@ function Dashboards({ navigation }) {
             patientId = data.linkedPatient;
           } else {
             setLoading(false);
-            return; 
+            return;
           }
         }
 
@@ -60,11 +65,25 @@ function Dashboards({ navigation }) {
           }
           setLoading(false);
         });
+      } else {
+        setLoading(false); // Si el documento del usuario no existe, dejar de cargar
       }
     };
 
     fetchUserData();
   }, []);
+
+  // Función para manejar el cierre de sesión
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // Redirigir al usuario a la pantalla de inicio de sesión después de cerrar sesión
+      navigation.replace('Login'); // Asegúrate de que 'Login' sea la ruta correcta para tu pantalla de inicio de sesión
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+      Alert.alert("Error", "No se pudo cerrar la sesión. Inténtalo de nuevo.");
+    }
+  };
 
   if (loading) {
     return (
@@ -88,13 +107,13 @@ function Dashboards({ navigation }) {
         <>
           <Button
             title="Escribir nota"
-            onPress={() => navigation.navigate('Notes')}
+            onPress={() => navigation.replace('Notes')}
             color="#007bff"
           />
           <View style={styles.buttonSpacer} />
           <Button
             title="Ver código de cuidador"
-            onPress={() => navigation.navigate('PatientToken')}
+            onPress={() => navigation.replace('PatientToken')}
             color="#6c757d"
           />
         </>
@@ -102,11 +121,26 @@ function Dashboards({ navigation }) {
         <>
           <Button
             title="Vincular con paciente"
-            onPress={() => navigation.navigate('CaregiverLink')}
+            onPress={() => navigation.replace('CaregiverLink')}
             color="#28a745"
+          />
+          <View style={styles.buttonSpacer} />
+          <Button
+            title="Notas del paciente"
+            onPress={() => navigation.replace('Analytic')}
+            color="#007bff"
           />
         </>
       ) : null}
+
+      {/* Botón de Cerrar Sesión */}
+      <View style={styles.logoutButtonContainer}>
+        <Button
+          title="Cerrar Sesión"
+          onPress={handleLogout}
+          color="#dc3545" // Un color rojo para indicar "peligro" o "salir"
+        />
+      </View>
     </View>
   );
 }
@@ -138,6 +172,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     color: '#555',
+  },
+  logoutButtonContainer: {
+    marginTop: 30, // Espacio superior para separar del resto de botones
+    width: '100%', // Ancho completo
   },
 });
 

@@ -1,43 +1,86 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
-import { getFirestore, collection, query, orderBy, onSnapshot, doc } from 'firebase/firestore';
-import { auth } from '../firebaseConfig'; 
+import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { auth } from '../firebaseConfig';
+import { signOut } from 'firebase/auth';
 
 function Analytic({ navigation }) {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null); 
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
-    const currentUser = auth.currentUser; 
-    
-    if (currentUser) {
-      setUser(currentUser);
-      const db = getFirestore();
-      const userNotesCollectionRef = collection(doc(collection(db, 'users'), currentUser.uid), 'analisis_clinicos');
-      const q = query(userNotesCollectionRef, orderBy('createdAt', 'desc'));
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const fetchedNotes = [];
-        querySnapshot.forEach(documentSnapshot => {
-          fetchedNotes.push({
-            id: documentSnapshot.id,
-            ...documentSnapshot.data(),
-          });
-        });
-        setNotes(fetchedNotes);
-        setLoading(false); 
-      }, (error) => {
-        console.error('Error al obtener las notas:', error);
-        Alert.alert('Error', 'No se pudieron cargar tus notas. Inténtalo de nuevo.');
-        setLoading(false);
-      });
-      return () => unsubscribe();
-    } else {
-      Alert.alert('Error', 'No hay usuario autenticado para ver las notas. Por favor, inicia sesión.');
-      navigation.navigate('Login');
-      setLoading(false);
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      Alert.alert('Error', 'No hay usuario autenticado. Por favor, inicia sesión.');
+      navigation.replace('Login');
+      return;
     }
+
+    const fetchUserDataAndNotes = async () => {
+      try {
+        const db = getFirestore();
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          setUserRole(userData.role);
+
+          let notesCollectionRef;
+          if (userData.role === 'paciente') {
+            notesCollectionRef = collection(doc(collection(db, 'users'), currentUser.uid), 'analisis_clinicos');
+          } else if (userData.role === 'cuidador' && userData.linkedPatient) {
+            notesCollectionRef = collection(doc(collection(db, 'users'), userData.linkedPatient), 'analisis_clinicos');
+          } else {
+            setLoading(false);
+            setNotes([]);
+            return;
+          }
+
+          const q = query(notesCollectionRef, orderBy('createdAt', 'desc'));
+          const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const fetchedNotes = [];
+            querySnapshot.forEach(documentSnapshot => {
+              fetchedNotes.push({
+                id: documentSnapshot.id,
+                ...documentSnapshot.data(),
+              });
+            });
+            setNotes(fetchedNotes);
+            setLoading(false);
+          }, (error) => {
+            console.error('Error al obtener las notas:', error);
+            Alert.alert('Error', 'No se pudieron cargar las notas. Inténtalo de nuevo.');
+            setLoading(false);
+          });
+          return () => unsubscribe();
+        } else {
+          Alert.alert('Error', 'Datos de usuario no encontrados.');
+          navigation.replace('Login');
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error al obtener datos de usuario o notas:', error);
+        Alert.alert('Error', 'Ocurrió un error al cargar los datos.');
+        navigation.replace('Login');
+        setLoading(false);
+      }
+    };
+
+    fetchUserDataAndNotes();
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigation.replace('Login');
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+      Alert.alert("Error", "No se pudo cerrar la sesión. Inténtalo de nuevo.");
+    }
+  };
 
   if (loading) {
     return (
@@ -50,10 +93,17 @@ function Analytic({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Mis Notas Clínicas</Text>
+      <Text style={styles.title}>
+        {userRole === 'cuidador' ? 'Notas del Paciente' : 'Mis Notas Clínicas'}
+      </Text>
 
       {notes.length === 0 ? (
-        <Text style={styles.noNotesText}>No tienes notas aún. ¡Crea una nueva!</Text>
+        // Mensaje condicional basado en el rol del usuario
+        <Text style={styles.noNotesText}>
+          {userRole === 'cuidador'
+            ? 'Tu paciente aún no tiene notas.'
+            : 'No tienes notas aún. ¡Crea una nueva!'}
+        </Text>
       ) : (
         <FlatList
           data={notes}
@@ -61,31 +111,37 @@ function Analytic({ navigation }) {
           renderItem={({ item }) => (
             <View style={styles.noteItem}>
               <Text style={styles.noteContent}>{item.content}</Text>
-              {item.createdAt && ( 
+              {item.createdAt && (
                 <Text style={styles.noteDate}>
-                  {/* Firestore Timestamp tiene un método toDate() */}
                   {new Date(item.createdAt.toDate()).toLocaleString()}
                 </Text>
               )}
             </View>
           )}
-          contentContainerStyle={styles.notesList} 
+          contentContainerStyle={styles.notesList}
         />
       )}
 
-      <View style={styles.buttonWrapper}>
+      <View style={styles.buttonSpacer} />
+
+      {userRole === 'paciente' ? (
         <Button
           title='Volver a la sección de notas'
-          onPress={() => navigation.navigate('Notes')}
+          onPress={() => navigation.replace('Notes')}
           color="#007bff"
         />
+      ) : userRole === 'cuidador' ? (
+        <Button
+          title='Volver al inicio'
+          onPress={() => navigation.replace('Dashboards')}
+          color="#28a745"
+        />
+      ) : null}
+
+      <View style={styles.buttonSpacer} />
+
+      <View style={styles.logoutButtonContainer}>
       </View>
-      <View style={styles.buttonaPocer} />
-            <Button
-              title='Volver al inicio' 
-              onPress={() => navigation.navigate('Dashboards')} 
-              color="#28a745"
-          />
     </View>
   );
 }
@@ -96,7 +152,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f0f2f5',
     padding: 25,
-    paddingTop: 50, 
+    paddingTop: 50,
   },
   title: {
     fontSize: 28,
@@ -119,14 +175,14 @@ const styles = StyleSheet.create({
   },
   notesList: {
     width: '100%',
-    paddingHorizontal: 5, 
-    paddingBottom: 20, 
+    paddingHorizontal: 5,
+    paddingBottom: 20,
   },
   noteItem: {
-    backgroundColor: '#ffffff', 
+    backgroundColor: '#ffffff',
     padding: 15,
-    borderRadius: 15, 
-    marginBottom: 15, 
+    borderRadius: 15,
+    marginBottom: 15,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -139,21 +195,20 @@ const styles = StyleSheet.create({
   noteContent: {
     fontSize: 16,
     color: '#333',
-    marginBottom: 8, 
+    marginBottom: 8,
   },
   noteDate: {
     fontSize: 12,
     color: '#666',
-    textAlign: 'right', 
+    textAlign: 'right',
   },
-  buttonWrapper: {
+  buttonSpacer: {
+    height: 20,
+  },
+  logoutButtonContainer: {
+    marginTop: 20,
     width: '100%',
-    marginTop: 20, 
-    marginBottom: 20,
   },
-  buttonaPocer:{
-    height:15,
-  }
 });
 
 export default Analytic;

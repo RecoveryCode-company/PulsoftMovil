@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert, Button, Clipboard } from 'react-native'; // Importa Clipboard
 import { auth, firestore } from '../firebaseConfig';
 import { doc, getDoc } from 'firebase/firestore';
 
-function PatientTokenScreen() {
+function PatientTokenScreen({ navigation }) {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const user = auth.currentUser;
@@ -12,19 +12,39 @@ function PatientTokenScreen() {
     const fetchToken = async () => {
       if (!user) {
         Alert.alert('Error', 'Usuario no autenticado.');
+        // Opcional: Redirigir a la pantalla de login si no hay usuario
+        navigation.replace('Login'); 
         return;
       }
       const userRef = doc(firestore, 'users', user.uid);
-      const snap = await getDoc(userRef);
-      if (snap.exists()) {
-        setToken(snap.data().pairingToken || 'No disponible');
-      } else {
-        Alert.alert('Error', 'Usuario no encontrado.');
+      try {
+        const snap = await getDoc(userRef);
+        if (snap.exists()) {
+          setToken(snap.data().pairingToken || 'No disponible');
+        } else {
+          Alert.alert('Error', 'Usuario no encontrado.');
+          setToken('No disponible'); // Establecer a no disponible si no se encuentra el usuario
+        }
+      } catch (error) {
+        console.error("Error al obtener el token:", error);
+        Alert.alert('Error', 'Hubo un problema al cargar tu código.');
+        setToken('Error al cargar');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchToken();
-  }, []);
+  }, [user]); // Dependencia 'user' para re-ejecutar si el usuario cambia
+
+  // Función para copiar el token al portapapeles
+  const copyToClipboard = () => {
+    if (token && token !== 'No disponible' && token !== 'Error al cargar') {
+      Clipboard.setString(token);
+      Alert.alert('Copiado', 'El código ha sido copiado al portapapeles.');
+    } else {
+      Alert.alert('Error', 'No hay un código válido para copiar.');
+    }
+  };
 
   if (loading) {
     return (
@@ -42,6 +62,23 @@ function PatientTokenScreen() {
       <Text style={styles.instructions}>
         Compártelo con tu cuidador para que pueda acceder a tus datos.
       </Text>
+
+      <View style={styles.buttonSpacer} />
+
+      {/* Botón para copiar el token */}
+      <Button
+        title="Copiar Código"
+        onPress={copyToClipboard}
+        color="#28a745" // Un color verde para la acción de copiar
+      />
+
+      <View style={styles.buttonSpacer} />
+
+      <Button
+        title="Volver al inicio"
+        onPress={() => navigation.replace('Dashboards')}
+        color="#6c757d"
+      />
     </View>
   );
 }
@@ -52,6 +89,9 @@ const styles = StyleSheet.create({
   token: { fontSize:36, fontWeight:'bold', color:'#007bff', marginBottom:20 },
   instructions: { fontSize:16, color:'#555', textAlign:'center', paddingHorizontal:20 },
   text: { fontSize:18, color:'#555', marginTop:15 },
+  buttonSpacer: {
+    height: 20,
+  },
 });
 
 export default PatientTokenScreen;

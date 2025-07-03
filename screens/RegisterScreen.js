@@ -124,7 +124,7 @@ function RegisterScreen({ navigation }) {
 
       <TouchableOpacity
         style={styles.linkButton}
-        onPress={() => navigation.goBack()} 
+        onPress={() => navigation.replace('Login')} 
         disabled={loading}
       >
         <Text style={styles.linkText}>¿Ya tienes cuenta? Inicia sesión</Text>
