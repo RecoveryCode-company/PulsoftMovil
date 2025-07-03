@@ -1,89 +1,134 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Button, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Button, ActivityIndicator, Alert, FlatList, TouchableOpacity } from 'react-native';
 import { ref, onValue } from 'firebase/database';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, database, firestore } from '../firebaseConfig'; // Asegúrate de que 'auth' se exporta desde firebaseConfig
-import { signOut } from 'firebase/auth'; // Importa signOut
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'; 
+import { auth, database, firestore } from '../firebaseConfig'; 
+import { signOut } from 'firebase/auth'; 
 
 function Dashboards({ navigation }) {
   const [userRole, setUserRole] = useState(null);
-  const [token, setToken] = useState('');
-  const [patientData, setPatientData] = useState({
-    cardiovascular: 'Cargando...',
-    sudor: 'Cargando...',
-    temperatura: 'Cargando...',
-  });
+  const [linkedPatients, setLinkedPatients] = useState([]); // Para cuidadores: lista de pacientes vinculados (UIDs y emails)
+  const [currentPatientData, setCurrentPatientData] = useState(null); // Datos del paciente que se está viendo
   const [loading, setLoading] = useState(true);
+  const [selectedPatientId, setSelectedPatientId] = useState(null); // ID del paciente seleccionado por el cuidador
 
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      // Si no hay usuario, redirigir a la pantalla de inicio de sesión
-      navigation.replace('Login'); // Asume que tienes una ruta 'Login'
+      navigation.replace('Login'); 
       return;
     }
 
-    const fetchUserData = async () => {
-      const userRef = doc(firestore, 'users', currentUser.uid);
-      const docSnap = await getDoc(userRef);
+    const fetchUserDataAndPatients = async () => {
+      try {
+        // 1. Obtener el rol y el token (si es paciente) desde Firestore
+        const userDocRef = doc(firestore, 'users', currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
 
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setUserRole(data.role);
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          setUserRole(userData.user_type); 
 
-        // Si es paciente, usa su propio ID
-        let patientId = currentUser.uid;
+          if (userData.user_type === 'patient') {
+            setSelectedPatientId(currentUser.uid); // El paciente se monitorea a sí mismo
+          } else if (userData.user_type === 'caregiver') {
+            // 2. Si es cuidador, obtener la lista de pacientes vinculados de Firestore
+            const caregiverPatientLinksRef = collection(firestore, 'caregiverPatientLinks');
+            // Busca enlaces donde el caregiverUid sea el UID del cuidador actual
+            const q = query(caregiverPatientLinksRef, where('caregiverUid', '==', currentUser.uid));
+            const querySnapshot = await getDocs(q);
 
-        if (data.role === 'paciente') {
-          setToken(data.pairingToken || 'No asignado');
-        }
-        if (data.role === 'cuidador') {
-          if (data.linkedPatient) {
-            patientId = data.linkedPatient;
-          } else {
-            setLoading(false);
-            return;
+            const fetchedPatients = [];
+            for (const linkDoc of querySnapshot.docs) {
+              const linkData = linkDoc.data();
+              const patientUid = linkData.patientUid;
+              
+              // Obtener los detalles del paciente de su documento de usuario en Firestore
+              const patientDocRef = doc(firestore, 'users', patientUid);
+              const patientDocSnap = await getDoc(patientDocRef);
+
+              if (patientDocSnap.exists()) {
+                const patientData = patientDocSnap.data();
+                fetchedPatients.push({
+                  uid: patientUid,
+                  email: patientData.email || 'Email no disponible', // Asegúrate de guardar email en el documento de usuario
+                });
+              }
+            }
+            setLinkedPatients(fetchedPatients); 
+            if (fetchedPatients.length > 0) {
+              setSelectedPatientId(fetchedPatients[0].uid); // Seleccionar el primer paciente por defecto
+            } else {
+              setLoading(false); // No hay pacientes, se termina la carga
+            }
           }
-        }
-
-        // Escuchar los datos del paciente (Realtime DB)
-        const patientRef = ref(database, `patients/${patientId}`);
-        onValue(patientRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const d = snapshot.val();
-            setPatientData({
-              cardiovascular: d.cardiovascular,
-              sudor: d.sudor,
-              temperatura: d.temperatura,
-            });
-          } else {
-            setPatientData({
-              cardiovascular: 'N/A',
-              sudor: 'N/A',
-              temperatura: 'N/A',
-            });
-          }
+        } else {
+          Alert.alert("Error", "No se encontró el perfil de usuario en Firestore.");
           setLoading(false);
-        });
-      } else {
-        setLoading(false); // Si el documento del usuario no existe, dejar de cargar
+          return;
+        }
+      } catch (error) {
+        console.error("Error al cargar datos del usuario/pacientes desde Firestore:", error);
+        Alert.alert("Error", "Hubo un problema al cargar tu información. Intenta de nuevo.");
+        setLoading(false);
       }
     };
 
-    fetchUserData();
-  }, []);
+    fetchUserDataAndPatients();
+  }, []); 
 
-  // Función para manejar el cierre de sesión
+  useEffect(() => {
+    let unsubscribeRealtime = () => {}; 
+
+    if (selectedPatientId) {
+      const patientRef = ref(database, `patients/${selectedPatientId}`);
+      unsubscribeRealtime = onValue(patientRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const d = snapshot.val();
+          setCurrentPatientData({
+            cardiovascular: d.cardiovascular,
+            sudor: d.sudor,
+            temperatura: d.temperatura,
+          });
+        } else {
+          setCurrentPatientData({
+            cardiovascular: 'N/A',
+            sudor: 'N/A',
+            temperatura: 'N/A',
+          });
+        }
+        setLoading(false); // Datos cargados
+      }, (error) => {
+        console.error("Error leyendo datos de Realtime Database:", error);
+        Alert.alert("Error", "No se pudieron cargar los datos en tiempo real del paciente.");
+        setLoading(false);
+      });
+    } else if (userRole === 'caregiver' && linkedPatients.length === 0) {
+      setLoading(false); // Si es cuidador y no tiene pacientes vinculados, no hay datos que cargar.
+    }
+    return () => unsubscribeRealtime(); 
+  }, [selectedPatientId, userRole, linkedPatients]); 
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // Redirigir al usuario a la pantalla de inicio de sesión después de cerrar sesión
-      navigation.replace('Login'); // Asegúrate de que 'Login' sea la ruta correcta para tu pantalla de inicio de sesión
+      navigation.replace('Login'); 
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
       Alert.alert("Error", "No se pudo cerrar la sesión. Inténtalo de nuevo.");
     }
   };
+
+  const renderPatientItem = ({ item }) => (
+    <TouchableOpacity
+      style={[styles.patientItem, item.uid === selectedPatientId && styles.selectedPatientItem]}
+      onPress={() => setSelectedPatientId(item.uid)}
+    >
+      <Text style={[styles.patientItemText, item.uid === selectedPatientId && { color: '#fff' }]}>
+        {item.email || 'Paciente Desconocido'}
+      </Text>
+    </TouchableOpacity>
+  );
 
   if (loading) {
     return (
@@ -96,49 +141,78 @@ function Dashboards({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Monitoreo del Paciente</Text>
-      <Text style={styles.dataText}>Cardiovascular: {patientData.cardiovascular}</Text>
-      <Text style={styles.dataText}>Sudor: {patientData.sudor}</Text>
-      <Text style={styles.dataText}>Temperatura: {patientData.temperatura}</Text>
+      <Text style={styles.title}>Monitoreo</Text>
+
+      {userRole === 'caregiver' && linkedPatients.length > 0 && (
+        <View style={styles.patientListContainer}>
+          <Text style={styles.sectionTitle}>Tus Pacientes:</Text>
+          <FlatList
+            data={linkedPatients}
+            renderItem={renderPatientItem}
+            keyExtractor={item => item.uid}
+            horizontal={true}
+            showsHorizontalScrollIndicator={false}
+            style={styles.patientFlatList}
+          />
+        </View>
+      )}
+
+      {selectedPatientId && currentPatientData ? (
+        <>
+          <Text style={styles.subtitle}>Datos en tiempo real:</Text>
+          <Text style={styles.dataText}>Cardiovascular: {currentPatientData.cardiovascular}</Text>
+          <Text style={styles.dataText}>Sudor: {currentPatientData.sudor}</Text>
+          <Text style={styles.dataText}>Temperatura: {currentPatientData.temperatura}</Text>
+        </>
+      ) : (
+        <Text style={styles.noPatientText}>
+          {userRole === 'caregiver' ? 'No tienes pacientes vinculados o selecciona uno.' : 'Cargando datos del paciente...'}
+        </Text>
+      )}
 
       <View style={styles.buttonSpacer} />
 
-      {userRole === 'paciente' ? (
+      {userRole === 'patient' ? (
         <>
           <Button
             title="Escribir nota"
-            onPress={() => navigation.replace('Notes')}
+            onPress={() => navigation.navigate('Notes')} 
             color="#007bff"
           />
           <View style={styles.buttonSpacer} />
           <Button
             title="Ver código de cuidador"
-            onPress={() => navigation.replace('PatientToken')}
+            onPress={() => navigation.navigate('PatientToken')} 
             color="#6c757d"
           />
         </>
-      ) : userRole === 'cuidador' ? (
+      ) : userRole === 'caregiver' ? (
         <>
           <Button
             title="Vincular con paciente"
-            onPress={() => navigation.replace('CaregiverLink')}
+            onPress={() => navigation.navigate('CaregiverLink')} 
             color="#28a745"
           />
           <View style={styles.buttonSpacer} />
           <Button
             title="Notas del paciente"
-            onPress={() => navigation.replace('Analytic')}
+            onPress={() => {
+              if (selectedPatientId) {
+                navigation.navigate('Analytic', { patientUid: selectedPatientId });
+              } else {
+                Alert.alert("Atención", "Selecciona un paciente para ver sus notas.");
+              }
+            }}
             color="#007bff"
           />
         </>
       ) : null}
 
-      {/* Botón de Cerrar Sesión */}
       <View style={styles.logoutButtonContainer}>
         <Button
           title="Cerrar Sesión"
           onPress={handleLogout}
-          color="#dc3545" // Un color rojo para indicar "peligro" o "salir"
+          color="#dc3545" 
         />
       </View>
     </View>
@@ -153,19 +227,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 24, 
+    fontWeight: '700', 
     textAlign: 'center',
-    marginBottom: 24,
-    color: '#000',
+    marginBottom: 20, 
+    color: '#2C3E50', 
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 10,
+    color: '#34495E',
+    textAlign: 'center', 
   },
   dataText: {
     fontSize: 16,
-    marginBottom: 12,
-    color: '#000',
+    marginBottom: 8, 
+    color: '#2C3E50',
+    textAlign: 'center', 
   },
   buttonSpacer: {
-    height: 20,
+    height: 15, 
   },
   loadingText: {
     marginTop: 15,
@@ -174,8 +256,45 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   logoutButtonContainer: {
-    marginTop: 30, // Espacio superior para separar del resto de botones
-    width: '100%', // Ancho completo
+    marginTop: 30, 
+    width: '100%', 
+  },
+  patientListContainer: {
+    marginBottom: 20,
+    maxHeight: 100, 
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+    textAlign: 'center',
+  },
+  patientFlatList: {
+    paddingVertical: 5,
+  },
+  patientItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: '#ECF0F1', 
+    borderRadius: 20,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#BDC3C7',
+  },
+  selectedPatientItem: {
+    backgroundColor: '#3498DB', 
+    borderColor: '#2980B9',
+  },
+  patientItemText: {
+    color: '#2C3E50',
+    fontWeight: 'bold',
+  },
+  noPatientText: {
+    fontSize: 16,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
 
