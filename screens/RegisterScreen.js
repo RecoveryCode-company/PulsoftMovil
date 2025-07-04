@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { createUserWithEmailAndPassword } from 'firebase/auth'; 
-import { auth, firestore } from '../firebaseConfig'; 
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, firestore } from '../firebaseConfig';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 const generateToken = (length = 6) => {
@@ -17,7 +17,7 @@ function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('paciente');
+  const [role, setRole] = useState('patient'); // 'patient' o 'caregiver'
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
@@ -36,24 +36,25 @@ function RegisterScreen({ navigation }) {
 
     setLoading(true);
     try {
+      // 1. Registrar usuario en Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const userData = {
-        role: role,
+      // 2. Guardar rol y token (si aplica) en Firestore
+      const firestoreUserData = {
+        user_type: role, // Usamos 'user_type' para el rol
+        email: email,
         createdAt: serverTimestamp(),
       };
 
-      // Si el rol es paciente, generar un token
-      if (role === 'paciente') {
-        userData.pairingToken = generateToken(6); // Genera un token como "A1B2C3"
+      if (role === 'patient') {
+        firestoreUserData.pairingToken = generateToken(6); // Generar token para pacientes
       }
 
-      // Guardar rol (y token si aplica) en Firestore
-      await setDoc(doc(firestore, 'users', user.uid), userData);
+      await setDoc(doc(firestore, 'users', user.uid), firestoreUserData);
 
       Alert.alert("¡Registro Exitoso!", "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.");
-      navigation.navigate('Login'); 
+      navigation.navigate('Login');
     } catch (error) {
       let errorMessage = "Ocurrió un error al registrar el usuario.";
       if (error.code === 'auth/email-already-in-use') {
@@ -99,17 +100,16 @@ function RegisterScreen({ navigation }) {
         onChangeText={setConfirmPassword}
       />
 
-      {/* Selector de Rol */}
       <View style={styles.roleContainer}>
         <TouchableOpacity
-          style={[styles.roleButton, role === 'paciente' && styles.selectedRole]}
-          onPress={() => setRole('paciente')}
+          style={[styles.roleButton, role === 'patient' && styles.selectedRole]}
+          onPress={() => setRole('patient')}
         >
           <Text style={styles.roleText}>Paciente</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.roleButton, role === 'cuidador' && styles.selectedRole]}
-          onPress={() => setRole('cuidador')}
+          style={[styles.roleButton, role === 'caregiver' && styles.selectedRole]}
+          onPress={() => setRole('caregiver')}
         >
           <Text style={styles.roleText}>Cuidador</Text>
         </TouchableOpacity>
@@ -124,7 +124,7 @@ function RegisterScreen({ navigation }) {
 
       <TouchableOpacity
         style={styles.linkButton}
-        onPress={() => navigation.replace('Login')} 
+        onPress={() => navigation.replace('Login')}
         disabled={loading}
       >
         <Text style={styles.linkText}>¿Ya tienes cuenta? Inicia sesión</Text>

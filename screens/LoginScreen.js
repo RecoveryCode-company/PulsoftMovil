@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { signInWithEmailAndPassword } from 'firebase/auth'; 
-import { auth } from '../firebaseConfig'; 
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebaseConfig';
 
 function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -17,13 +17,12 @@ function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigation.replace('Dashboards'); 
+      navigation.replace('Dashboards'); // Navegar al Dashboard después de iniciar sesión
     } catch (error) {
       let errorMessage = "Ocurrió un error al iniciar sesión.";
       if (error.code === 'auth/invalid-email') {
         errorMessage = "El formato del correo electrónico es inválido.";
       } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        // 'auth/invalid-credential' es un error más genérico para credenciales incorrectas en versiones recientes
         errorMessage = "Credenciales incorrectas. Verifica tu correo y contraseña.";
       } else if (error.code === 'auth/network-request-failed') {
         errorMessage = "Error de red. Verifica tu conexión a internet.";
@@ -53,12 +52,12 @@ function LoginScreen({ navigation }) {
         value={password}
         onChangeText={setPassword}
       />
-      
+
       <Button
         title={loading ? "Iniciando..." : "Iniciar Sesión"}
         onPress={handleLogin}
         disabled={loading}
-        color="#007bff" 
+        color="#007bff"
       />
 
       <TouchableOpacity

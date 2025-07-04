@@ -1,32 +1,40 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, Button, Clipboard } from 'react-native'; // Importa Clipboard
-import { auth, firestore } from '../firebaseConfig';
+import { View, Text, StyleSheet, ActivityIndicator, Alert, Button, Clipboard } from 'react-native';
+import { firestore } from '../firebaseConfig';
 import { doc, getDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 function PatientTokenScreen({ navigation }) {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
-  const user = auth.currentUser;
 
   useEffect(() => {
     const fetchToken = async () => {
-      if (!user) {
+      const currentUser = getAuth().currentUser;
+      if (!currentUser) {
         Alert.alert('Error', 'Usuario no autenticado.');
-        // Opcional: Redirigir a la pantalla de login si no hay usuario
-        navigation.replace('Login'); 
+        navigation.replace('Login');
         return;
       }
-      const userRef = doc(firestore, 'users', user.uid);
+
+      const userDocRef = doc(firestore, 'users', currentUser.uid);
       try {
-        const snap = await getDoc(userRef);
+        const snap = await getDoc(userDocRef);
         if (snap.exists()) {
-          setToken(snap.data().pairingToken || 'No disponible');
+          const userData = snap.data();
+          if (userData.user_type === 'patient') { // Usa 'user_type' para el rol
+            setToken(userData.pairingToken || 'No disponible');
+          } else {
+            Alert.alert('Acceso Denegado', 'Esta pantalla es solo para usuarios tipo Paciente.');
+            navigation.replace('Dashboards');
+            return;
+          }
         } else {
-          Alert.alert('Error', 'Usuario no encontrado.');
-          setToken('No disponible'); // Establecer a no disponible si no se encuentra el usuario
+          Alert.alert('Error', 'Usuario no encontrado en Firestore.');
+          setToken('No disponible');
         }
       } catch (error) {
-        console.error("Error al obtener el token:", error);
+        console.error("Error al obtener el token de Firestore:", error);
         Alert.alert('Error', 'Hubo un problema al cargar tu código.');
         setToken('Error al cargar');
       } finally {
@@ -34,9 +42,8 @@ function PatientTokenScreen({ navigation }) {
       }
     };
     fetchToken();
-  }, [user]); // Dependencia 'user' para re-ejecutar si el usuario cambia
+  }, []);
 
-  // Función para copiar el token al portapapeles
   const copyToClipboard = () => {
     if (token && token !== 'No disponible' && token !== 'Error al cargar') {
       Clipboard.setString(token);
@@ -51,6 +58,7 @@ function PatientTokenScreen({ navigation }) {
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#007bff" />
         <Text style={styles.text}>Cargando código...</Text>
+        <Text>Si no es paciente, esta pantalla no se mostrará.</Text>
       </View>
     );
   }
@@ -65,11 +73,10 @@ function PatientTokenScreen({ navigation }) {
 
       <View style={styles.buttonSpacer} />
 
-      {/* Botón para copiar el token */}
       <Button
         title="Copiar Código"
         onPress={copyToClipboard}
-        color="#28a745" // Un color verde para la acción de copiar
+        color="#28a745"
       />
 
       <View style={styles.buttonSpacer} />
@@ -84,11 +91,11 @@ function PatientTokenScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex:1, justifyContent:'center', alignItems:'center', padding:20, backgroundColor:'#f5f5f5' },
-  title: { fontSize:26, fontWeight:'bold', marginBottom:20, color:'#333' },
-  token: { fontSize:36, fontWeight:'bold', color:'#007bff', marginBottom:20 },
-  instructions: { fontSize:16, color:'#555', textAlign:'center', paddingHorizontal:20 },
-  text: { fontSize:18, color:'#555', marginTop:15 },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#f5f5f5' },
+  title: { fontSize: 26, fontWeight: 'bold', marginBottom: 20, color: '#333' },
+  token: { fontSize: 36, fontWeight: 'bold', color: '#007bff', marginBottom: 20 },
+  instructions: { fontSize: 16, color: '#555', textAlign: 'center', paddingHorizontal: 20 },
+  text: { fontSize: 18, color: '#555', marginTop: 15 },
   buttonSpacer: {
     height: 20,
   },

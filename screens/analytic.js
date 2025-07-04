@@ -1,13 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
+// Analytic.js
+import React, { useEffect, useState } from 'react';
+import { View, Text, Button, StyleSheet, FlatList, ActivityIndicator, Alert, Image } from 'react-native'; // Importa Image
 import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { auth } from '../firebaseConfig';
-import { signOut } from 'firebase/auth';
 
-function Analytic({ navigation }) {
+// Define tus umbrales de trofeos y sus imágenes
+const TROPHY_LEVELS = [
+  { notesRequired: 1, image: require('../assets/trofeo1.png') }, // Asegúrate de tener estas imágenes
+  { notesRequired: 5, image: require('../assets/trofeo2.png') },
+  { notesRequired: 10, image: require('../assets/trofeo3.png') },
+];
+
+function Analytic({ route, navigation }) {
+  const { patientUid: patientUidFromNavigation } = route.params || {};
+
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
+  const [currentPatientId, setCurrentPatientId] = useState(null);
+  const [currentPatientNotesCount, setCurrentPatientNotesCount] = useState(0); // Nuevo estado para el contador de notas
 
   useEffect(() => {
     const currentUser = auth.currentUser;
@@ -18,68 +29,105 @@ function Analytic({ navigation }) {
       return;
     }
 
-    const fetchUserDataAndNotes = async () => {
+    const db = getFirestore();
+
+    const determinePatientAndFetchNotes = async () => {
+      let patientToFetchUid = null;
+      let unsubscribeNotesCount = () => {}; // Variable para el listener del contador
+
       try {
-        const db = getFirestore();
         const userDocRef = doc(db, 'users', currentUser.uid);
         const userDocSnap = await getDoc(userDocRef);
 
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          setUserRole(userData.role);
+        if (!userDocSnap.exists()) {
+          Alert.alert('Error', 'Datos de usuario no encontrados en Firestore.');
+          navigation.replace('Login');
+          setLoading(false);
+          return;
+        }
+        const userData = userDocSnap.data();
+        setUserRole(userData.user_type);
 
-          let notesCollectionRef;
-          if (userData.role === 'paciente') {
-            notesCollectionRef = collection(doc(collection(db, 'users'), currentUser.uid), 'analisis_clinicos');
-          } else if (userData.role === 'cuidador' && userData.linkedPatient) {
-            notesCollectionRef = collection(doc(collection(db, 'users'), userData.linkedPatient), 'analisis_clinicos');
+        if (userData.user_type === 'patient') {
+          patientToFetchUid = currentUser.uid;
+        } else if (userData.user_type === 'caregiver') {
+          if (patientUidFromNavigation) {
+            patientToFetchUid = patientUidFromNavigation;
           } else {
+            Alert.alert("Atención", "Selecciona un paciente desde el Dashboard para ver sus notas.");
             setLoading(false);
             setNotes([]);
             return;
           }
-
-          const q = query(notesCollectionRef, orderBy('createdAt', 'desc'));
-          const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const fetchedNotes = [];
-            querySnapshot.forEach(documentSnapshot => {
-              fetchedNotes.push({
-                id: documentSnapshot.id,
-                ...documentSnapshot.data(),
-              });
-            });
-            setNotes(fetchedNotes);
-            setLoading(false);
-          }, (error) => {
-            console.error('Error al obtener las notas:', error);
-            Alert.alert('Error', 'No se pudieron cargar las notas. Inténtalo de nuevo.');
-            setLoading(false);
-          });
-          return () => unsubscribe();
         } else {
-          Alert.alert('Error', 'Datos de usuario no encontrados.');
-          navigation.replace('Login');
+          Alert.alert("Error", "Rol de usuario no reconocido.");
           setLoading(false);
+          setNotes([]);
+          return;
         }
+
+        setCurrentPatientId(patientToFetchUid);
+        if (!patientToFetchUid) {
+          setLoading(false);
+          setNotes([]);
+          return;
+        }
+
+        // Escuchar notas
+        const notesCollectionRef = collection(doc(db, 'users', patientToFetchUid), 'notes');
+        const q = query(notesCollectionRef, orderBy('createdAt', 'desc'));
+
+        const unsubscribeNotes = onSnapshot(q, (querySnapshot) => {
+          const fetchedNotes = [];
+          querySnapshot.forEach(documentSnapshot => {
+            fetchedNotes.push({
+              id: documentSnapshot.id,
+              ...documentSnapshot.data(),
+            });
+          });
+          setNotes(fetchedNotes);
+          setLoading(false);
+        }, (error) => {
+          console.error('Error al obtener las notas:', error);
+          Alert.alert('Error', 'No se pudieron cargar las notas. Inténtalo de nuevo.');
+          setLoading(false);
+        });
+
+        // **NUEVO: Escuchar cambios en el contador de notas del paciente que se está viendo**
+        const patientDocRef = doc(db, 'users', patientToFetchUid);
+        unsubscribeNotesCount = onSnapshot(patientDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setCurrentPatientNotesCount(data.notesCount || 0);
+          } else {
+            setCurrentPatientNotesCount(0);
+          }
+        }, (error) => {
+          console.error("Error al obtener el contador de notas:", error);
+        });
+
+        return () => {
+          unsubscribeNotes();
+          unsubscribeNotesCount(); // Limpiar el listener del contador de notas
+        };
       } catch (error) {
-        console.error('Error al obtener datos de usuario o notas:', error);
+        console.error('Error en determinePatientAndFetchNotes:', error);
         Alert.alert('Error', 'Ocurrió un error al cargar los datos.');
         navigation.replace('Login');
         setLoading(false);
       }
     };
 
-    fetchUserDataAndNotes();
-  }, []);
+    determinePatientAndFetchNotes();
+  }, [patientUidFromNavigation, navigation]);
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      navigation.replace('Login');
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error);
-      Alert.alert("Error", "No se pudo cerrar la sesión. Inténtalo de nuevo.");
-    }
+  // Función para obtener la imagen del trofeo (igual que en Dashboards.js)
+  const getTrophyImage = (notesCount) => {
+    const achievedTrophy = TROPHY_LEVELS
+      .filter(level => notesCount >= level.notesRequired)
+      .sort((a, b) => b.notesRequired - a.notesRequired)[0];
+
+    return achievedTrophy ? achievedTrophy.image : null;
   };
 
   if (loading) {
@@ -91,16 +139,26 @@ function Analytic({ navigation }) {
     );
   }
 
+  const trophyImage = getTrophyImage(currentPatientNotesCount);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
-        {userRole === 'cuidador' ? 'Notas del Paciente' : 'Mis Notas Clínicas'}
+        {userRole === 'caregiver' ? 'Notas del Paciente' : 'Mis Notas Clínicas'}
       </Text>
 
+      {/* **NUEVO: Mostrar el trofeo aquí si existe** */}
+      {trophyImage && (
+        <View style={styles.trophyContainer}>
+          <Text style={styles.trophyTitle}>¡Trofeo de Notas!</Text>
+          <Image source={trophyImage} style={styles.trophyImage} />
+          <Text style={styles.trophyText}>Llevas {currentPatientNotesCount} notas escritas.</Text>
+        </View>
+      )}
+
       {notes.length === 0 ? (
-        // Mensaje condicional basado en el rol del usuario
         <Text style={styles.noNotesText}>
-          {userRole === 'cuidador'
+          {userRole === 'caregiver'
             ? 'Tu paciente aún no tiene notas.'
             : 'No tienes notas aún. ¡Crea una nueva!'}
         </Text>
@@ -116,6 +174,12 @@ function Analytic({ navigation }) {
                   {new Date(item.createdAt.toDate()).toLocaleString()}
                 </Text>
               )}
+              {item.analysis && (
+                <View style={styles.analysisContainer}>
+                  <Text style={styles.analysisTitle}>Análisis IA:</Text>
+                  <Text style={styles.analysisText}>{item.analysis}</Text>
+                </View>
+              )}
             </View>
           )}
           contentContainerStyle={styles.notesList}
@@ -124,13 +188,13 @@ function Analytic({ navigation }) {
 
       <View style={styles.buttonSpacer} />
 
-      {userRole === 'paciente' ? (
+      {userRole === 'patient' ? (
         <Button
           title='Volver a la sección de notas'
           onPress={() => navigation.replace('Notes')}
           color="#007bff"
         />
-      ) : userRole === 'cuidador' ? (
+      ) : userRole === 'caregiver' ? (
         <Button
           title='Volver al inicio'
           onPress={() => navigation.replace('Dashboards')}
@@ -139,9 +203,6 @@ function Analytic({ navigation }) {
       ) : null}
 
       <View style={styles.buttonSpacer} />
-
-      <View style={styles.logoutButtonContainer}>
-      </View>
     </View>
   );
 }
@@ -205,9 +266,53 @@ const styles = StyleSheet.create({
   buttonSpacer: {
     height: 20,
   },
-  logoutButtonContainer: {
-    marginTop: 20,
-    width: '100%',
+  analysisContainer: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  analysisTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#007bff',
+    marginBottom: 5,
+  },
+  analysisText: {
+    fontSize: 14,
+    color: '#555',
+  },
+  // Estilos para el trofeo
+  trophyContainer: {
+    alignItems: 'center',
+    marginTop: 10, // Un poco menos de margen si va antes de las notas
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: '#e6ffe6',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#aaffaa',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  trophyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#28a745',
+    marginBottom: 10,
+  },
+  trophyImage: {
+    width: 80,
+    height: 80,
+    resizeMode: 'contain',
+    marginBottom: 10,
+  },
+  trophyText: {
+    fontSize: 14,
+    color: '#555',
   },
 });
 

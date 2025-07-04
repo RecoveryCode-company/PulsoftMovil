@@ -1,22 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert, Button, ActivityIndicator } from 'react-native';
 import { auth, firestore } from '../firebaseConfig';
-import { doc, setDoc, getDoc, query, collection, where, getDocs, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 
 function CaregiverLinkScreen({ navigation }) {
   const [tokenInput, setTokenInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState(null);
-
-  useEffect(() => {
-    const user = auth.currentUser;
-    if (user) {
-      setUserId(user.uid);
-    } else {
-      Alert.alert('Error', 'No hay usuario autenticado');
-      navigation.navigate('Login');
-    }
-  }, []);
 
   const handleLink = async () => {
     if (!tokenInput.trim()) {
@@ -25,27 +14,60 @@ function CaregiverLinkScreen({ navigation }) {
     }
 
     setLoading(true);
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      Alert.alert('Error', 'No hay usuario autenticado. Por favor, inicia sesión de nuevo.');
+      navigation.replace('Login');
+      setLoading(false);
+      return;
+    }
 
     try {
-      const q = query(collection(firestore, 'users'), where('pairingToken', '==', tokenInput.trim().toUpperCase()));
+      const formattedToken = tokenInput.trim().toUpperCase();
+
+      // 1. Buscar al paciente por el pairingToken en Firestore
+      const usersRef = collection(firestore, 'users');
+      const q = query(usersRef, where('pairingToken', '==', formattedToken), where('user_type', '==', 'patient'));
       const querySnapshot = await getDocs(q);
 
-      if (!querySnapshot.empty) {
-        const patientDoc = querySnapshot.docs[0];
-        const patientId = patientDoc.id;
-
-        await updateDoc(doc(firestore, 'users', userId), {
-          linkedPatient: patientId,
-        });
-
-        Alert.alert('Éxito', 'Has sido vinculado al paciente correctamente.');
-        navigation.navigate('Dashboards'); 
-      } else {
-        Alert.alert('Token inválido', 'No se encontró ningún paciente con ese código.');
+      if (querySnapshot.empty) {
+        Alert.alert('Error', 'No se encontró ningún paciente con ese código de vinculación o el código es incorrecto.');
+        setLoading(false);
+        return;
       }
+
+      const patientDoc = querySnapshot.docs[0];
+      const patientUid = patientDoc.id;
+
+      // 2. Verificar que el cuidador no esté ya vinculado a este paciente
+      const caregiverPatientLinksRef = collection(firestore, 'caregiverPatientLinks');
+      const existingLinkQuery = query(
+        caregiverPatientLinksRef,
+        where('caregiverUid', '==', currentUser.uid),
+        where('patientUid', '==', patientUid)
+      );
+      const existingLinkSnapshot = await getDocs(existingLinkQuery);
+
+      if (!existingLinkSnapshot.empty) {
+        Alert.alert('Información', 'Ya estás vinculado a este paciente.');
+        setLoading(false);
+        navigation.goBack();
+        return;
+      }
+
+      // 3. Crear el enlace en la colección caregiverPatientLinks en Firestore
+      await addDoc(caregiverPatientLinksRef, {
+        caregiverUid: currentUser.uid,
+        patientUid: patientUid,
+        linkedAt: Date.now(),
+      });
+
+      Alert.alert('Éxito', 'Has sido vinculado al paciente correctamente.');
+      navigation.navigate('Dashboards'); // Recarga el dashboard para mostrar el nuevo paciente
     } catch (error) {
-      console.error("Error al vincular cuidador:", error);
-      Alert.alert('Error', 'No se pudo completar la vinculación. Intenta más tarde.');
+      console.error("Error al vincular cuidador con paciente en Firestore:", error);
+      Alert.alert('Error', 'Hubo un problema al intentar vincular. Intenta más tarde.');
     } finally {
       setLoading(false);
     }
