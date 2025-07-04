@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert, Button, Clipboard } from 'react-native';
-import { auth, firestore } from '../firebaseConfig'; 
-import { doc, getDoc } from 'firebase/firestore'; 
-import { getAuth } from 'firebase/auth'; 
+import { firestore } from '../firebaseConfig';
+import { doc, getDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 function PatientTokenScreen({ navigation }) {
   const [token, setToken] = useState(null);
@@ -13,7 +13,7 @@ function PatientTokenScreen({ navigation }) {
       const currentUser = getAuth().currentUser;
       if (!currentUser) {
         Alert.alert('Error', 'Usuario no autenticado.');
-        navigation.replace('Login'); 
+        navigation.replace('Login');
         return;
       }
 
@@ -22,7 +22,7 @@ function PatientTokenScreen({ navigation }) {
         const snap = await getDoc(userDocRef);
         if (snap.exists()) {
           const userData = snap.data();
-          if (userData.user_type === 'patient') { 
+          if (userData.user_type === 'patient') { // Usa 'user_type' para el rol
             setToken(userData.pairingToken || 'No disponible');
           } else {
             Alert.alert('Acceso Denegado', 'Esta pantalla es solo para usuarios tipo Paciente.');
@@ -31,7 +31,7 @@ function PatientTokenScreen({ navigation }) {
           }
         } else {
           Alert.alert('Error', 'Usuario no encontrado en Firestore.');
-          setToken('No disponible'); 
+          setToken('No disponible');
         }
       } catch (error) {
         console.error("Error al obtener el token de Firestore:", error);
@@ -42,7 +42,7 @@ function PatientTokenScreen({ navigation }) {
       }
     };
     fetchToken();
-  }, []); 
+  }, []);
 
   const copyToClipboard = () => {
     if (token && token !== 'No disponible' && token !== 'Error al cargar') {
@@ -76,7 +76,7 @@ function PatientTokenScreen({ navigation }) {
       <Button
         title="Copiar Código"
         onPress={copyToClipboard}
-        color="#28a745" 
+        color="#28a745"
       />
 
       <View style={styles.buttonSpacer} />
@@ -91,11 +91,11 @@ function PatientTokenScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex:1, justifyContent:'center', alignItems:'center', padding:20, backgroundColor:'#f5f5f5' },
-  title: { fontSize:26, fontWeight:'bold', marginBottom:20, color:'#333' },
-  token: { fontSize:36, fontWeight:'bold', color:'#007bff', marginBottom:20 },
-  instructions: { fontSize:16, color:'#555', textAlign:'center', paddingHorizontal:20 },
-  text: { fontSize:18, color:'#555', marginTop:15 },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#f5f5f5' },
+  title: { fontSize: 26, fontWeight: 'bold', marginBottom: 20, color: '#333' },
+  token: { fontSize: 36, fontWeight: 'bold', color: '#007bff', marginBottom: 20 },
+  instructions: { fontSize: 16, color: '#555', textAlign: 'center', paddingHorizontal: 20 },
+  text: { fontSize: 18, color: '#555', marginTop: 15 },
   buttonSpacer: {
     height: 20,
   },

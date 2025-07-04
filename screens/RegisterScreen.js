@@ -4,7 +4,6 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, firestore } from '../firebaseConfig';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
-// Función para generar el token (se mantiene aquí)
 const generateToken = (length = 6) => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
@@ -18,7 +17,7 @@ function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('patient');
+  const [role, setRole] = useState('patient'); // 'patient' o 'caregiver'
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
@@ -41,15 +40,15 @@ function RegisterScreen({ navigation }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Guardar rol y token (si aplica) en Firestore directamente
+      // 2. Guardar rol y token (si aplica) en Firestore
       const firestoreUserData = {
-        user_type: role,
-        email: email, // Guardar el email también en Firestore para fácil referencia
+        user_type: role, // Usamos 'user_type' para el rol
+        email: email,
         createdAt: serverTimestamp(),
       };
 
       if (role === 'patient') {
-        firestoreUserData.pairingToken = generateToken(6);
+        firestoreUserData.pairingToken = generateToken(6); // Generar token para pacientes
       }
 
       await setDoc(doc(firestore, 'users', user.uid), firestoreUserData);

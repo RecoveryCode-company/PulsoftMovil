@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert, Button, ActivityIndicator } from 'react-native';
-import { auth, firestore } from '../firebaseConfig'; // Importa firestore
-import { collection, query, where, getDocs, addDoc } from 'firebase/firestore'; // Importa getDocs y addDoc
+import { auth, firestore } from '../firebaseConfig';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 
 function CaregiverLinkScreen({ navigation }) {
   const [tokenInput, setTokenInput] = useState('');
@@ -37,7 +37,6 @@ function CaregiverLinkScreen({ navigation }) {
         return;
       }
 
-      // Debería haber solo un paciente con un token único
       const patientDoc = querySnapshot.docs[0];
       const patientUid = patientDoc.id;
 
@@ -53,7 +52,7 @@ function CaregiverLinkScreen({ navigation }) {
       if (!existingLinkSnapshot.empty) {
         Alert.alert('Información', 'Ya estás vinculado a este paciente.');
         setLoading(false);
-        navigation.goBack(); // O ir al dashboard
+        navigation.goBack();
         return;
       }
 
@@ -61,8 +60,7 @@ function CaregiverLinkScreen({ navigation }) {
       await addDoc(caregiverPatientLinksRef, {
         caregiverUid: currentUser.uid,
         patientUid: patientUid,
-        linkedAt: Date.now(), // Timestamp de vinculación
-        // Puedes añadir más campos si lo necesitas, como is_active: true
+        linkedAt: Date.now(),
       });
 
       Alert.alert('Éxito', 'Has sido vinculado al paciente correctamente.');
