@@ -48,7 +48,7 @@ const WelcomeScreen = ({ navigation }) => {
         {/* Botón Iniciar Sesión */}
         <TouchableOpacity
           style={styles.loginButton}
-          onPress={() => navigation.navigate('LoginScreen')}
+          onPress={() => navigation.replace('Login')}
           activeOpacity={0.85}
         >
           <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
@@ -57,7 +57,7 @@ const WelcomeScreen = ({ navigation }) => {
         {/* Botón Registrarse */}
         <TouchableOpacity
           style={styles.registerButton}
-          onPress={() => navigation.navigate('RegisterScreen')}
+          onPress={() => navigation.replace('Register')}
           activeOpacity={0.85}
         >
           <Text style={styles.registerButtonText}>Registrarse</Text>
