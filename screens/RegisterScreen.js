@@ -1,23 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, firestore } from '../firebaseConfig';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { COLORS } from './colors';
 
-const generateToken = (length = 6) => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-};
+const { width } = Dimensions.get('window');
 
 function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('patient'); // 'patient' o 'caregiver'
+  const [role, setRole] = useState('patient');
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
@@ -75,11 +66,11 @@ function RegisterScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Registrarse</Text>
-
+      <Text style={styles.title}>Registro</Text>
       <TextInput
         style={styles.input}
         placeholder="Correo Electrónico"
+        placeholderTextColor={COLORS.secondary}
         keyboardType="email-address"
         autoCapitalize="none"
         value={email}
@@ -88,6 +79,7 @@ function RegisterScreen({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Contraseña"
+        placeholderTextColor={COLORS.secondary}
         secureTextEntry
         value={password}
         onChangeText={setPassword}
@@ -95,39 +87,43 @@ function RegisterScreen({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Confirmar Contraseña"
+        placeholderTextColor={COLORS.secondary}
         secureTextEntry
         value={confirmPassword}
         onChangeText={setConfirmPassword}
       />
-
       <View style={styles.roleContainer}>
         <TouchableOpacity
           style={[styles.roleButton, role === 'patient' && styles.selectedRole]}
           onPress={() => setRole('patient')}
         >
-          <Text style={styles.roleText}>Paciente</Text>
+          <Text style={[styles.roleText, role === 'patient' && { color: COLORS.white }]}>Paciente</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.roleButton, role === 'caregiver' && styles.selectedRole]}
           onPress={() => setRole('caregiver')}
         >
-          <Text style={styles.roleText}>Cuidador</Text>
+          <Text style={[styles.roleText, role === 'caregiver' && { color: COLORS.white }]}>Cuidador</Text>
         </TouchableOpacity>
       </View>
-
-      <Button
-        title={loading ? "Registrando..." : "Registrarse"}
+      <TouchableOpacity
+        style={styles.button}
         onPress={handleRegister}
         disabled={loading}
-        color="#28a745"
-      />
-
+        activeOpacity={0.85}
+      >
+        {loading ? (
+          <ActivityIndicator color={COLORS.white} />
+        ) : (
+          <Text style={styles.buttonText}>Registrarse</Text>
+        )}
+      </TouchableOpacity>
       <TouchableOpacity
         style={styles.linkButton}
         onPress={() => navigation.replace('Login')}
         disabled={loading}
       >
-        <Text style={styles.linkText}>¿Ya tienes cuenta? Inicia sesión</Text>
+        <Text style={styles.linkText}>¿Ya tienes cuenta? <Text style={{ color: COLORS.coral }}>Inicia sesión</Text></Text>
       </TouchableOpacity>
     </View>
   );
@@ -136,53 +132,89 @@ function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: COLORS.background,
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    padding: 24,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
+    color: COLORS.primary,
     fontWeight: 'bold',
-    marginBottom: 30,
-    color: '#333',
+    marginBottom: 32,
+    letterSpacing: 1,
+    textAlign: 'center',
   },
   input: {
     width: '100%',
-    height: 50,
-    borderColor: '#ddd',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    backgroundColor: '#fff',
+    maxWidth: 410,
+    height: 52,
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
+    marginBottom: 18,
+    paddingHorizontal: 18,
     fontSize: 16,
-  },
-  linkButton: {
-    marginTop: 20,
-  },
-  linkText: {
-    color: '#007bff',
-    fontSize: 16,
-    textDecorationLine: 'underline',
+    color: COLORS.text,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 5,
+    elevation: 2,
   },
   roleContainer: {
     flexDirection: 'row',
-    marginBottom: 20,
+    marginBottom: 18,
+    justifyContent: 'center',
+    width: '100%',
   },
   roleButton: {
-    backgroundColor: '#ccc',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginHorizontal: 5,
-    borderRadius: 8,
+    backgroundColor: COLORS.accent,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    marginHorizontal: 6,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: COLORS.secondary,
   },
   selectedRole: {
-    backgroundColor: '#007bff',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   roleText: {
-    color: '#fff',
+    color: COLORS.primary,
     fontWeight: 'bold',
+    fontSize: 16,
+  },
+  button: {
+    width: width * 0.7,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 16,
+    borderRadius: 22,
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 5,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  buttonText: {
+    color: COLORS.white,
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  linkButton: {
+    marginTop: 18,
+  },
+  linkText: {
+    color: COLORS.text,
+    fontSize: 16,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
 });
 

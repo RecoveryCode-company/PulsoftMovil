@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebaseConfig';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
+import { COLORS } from './colors';
+
+const { width } = Dimensions.get('window');
 
 function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -9,7 +10,7 @@ function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
+        if (!email || !password) {
       Alert.alert("Error", "Por favor, ingresa tu correo y contraseña.");
       return;
     }
@@ -17,7 +18,7 @@ function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigation.replace('Dashboards'); // Navegar al Dashboard después de iniciar sesión
+      navigation.replace('Dashboards');     //se navega al Dashboard después de iniciar sesión
     } catch (error) {
       let errorMessage = "Ocurrió un error al iniciar sesión.";
       if (error.code === 'auth/invalid-email') {
@@ -40,6 +41,7 @@ function LoginScreen({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Correo Electrónico"
+        placeholderTextColor={COLORS.secondary}
         keyboardType="email-address"
         autoCapitalize="none"
         value={email}
@@ -48,24 +50,29 @@ function LoginScreen({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Contraseña"
+        placeholderTextColor={COLORS.secondary}
         secureTextEntry
         value={password}
         onChangeText={setPassword}
       />
-
-      <Button
-        title={loading ? "Iniciando..." : "Iniciar Sesión"}
+      <TouchableOpacity
+        style={styles.button}
         onPress={handleLogin}
         disabled={loading}
-        color="#007bff"
-      />
-
+        activeOpacity={0.85}
+      >
+        {loading ? (
+          <ActivityIndicator color={COLORS.white} />
+        ) : (
+          <Text style={styles.buttonText}>Iniciar Sesión</Text>
+        )}
+      </TouchableOpacity>
       <TouchableOpacity
         style={styles.linkButton}
-        onPress={() => navigation.navigate('Register')}
+        onPress={() => navigation.replace('Register')}
         disabled={loading}
       >
-        <Text style={styles.linkText}>¿No tienes cuenta? Regístrate</Text>
+        <Text style={styles.linkText}>¿No tienes cuenta? <Text style={{ color: COLORS.coral }}>Regístrate</Text></Text>
       </TouchableOpacity>
     </View>
   );
@@ -74,34 +81,64 @@ function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: COLORS.background,
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    padding: 24,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
+    color: COLORS.primary,
     fontWeight: 'bold',
-    marginBottom: 30,
-    color: '#333',
+    marginBottom: 32,
+    letterSpacing: 1,
+    textAlign: 'center',
   },
   input: {
     width: '100%',
-    height: 50,
-    borderColor: '#ddd',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    backgroundColor: '#fff',
+    maxWidth: 410,
+    height: 52,
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
+    marginBottom: 18,
+    paddingHorizontal: 18,
     fontSize: 16,
+    color: COLORS.text,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  button: {
+    width: width * 0.7,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 16,
+    borderRadius: 22,
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 5,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  buttonText: {
+    color: COLORS.white,
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   linkButton: {
-    marginTop: 20,
+    marginTop: 18,
   },
   linkText: {
-    color: '#007bff',
+    color: COLORS.text,
     fontSize: 16,
+    textAlign: 'center',
     textDecorationLine: 'underline',
   },
 });
