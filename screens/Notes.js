@@ -54,7 +54,6 @@ function Notes({ navigation }) {
     try {
       let aiAnalysis = 'Análisis no disponible';
 
-      // **Tu lógica de llamada a la API de IA (no se modifica aquí)**
       try {
         const aiResponse = await axios.post('YOUR_AI_API_ENDPOINT/analyze-note', {
           noteContent: noteText,
@@ -70,8 +69,7 @@ function Notes({ navigation }) {
         Alert.alert("Advertencia", "No se pudo obtener el análisis de la IA para esta nota.");
       }
 
-      // Guardar la nota en Firestore
-      await addDoc(collection(firestore, 'users', user.uid, 'notes'), {
+      await addDoc(collection(firestore, 'users', user.uid, 'notes'), {   // Guardar la nota en Firestore
         content: noteText,
         analysis: aiAnalysis,
         createdAt: serverTimestamp(),
