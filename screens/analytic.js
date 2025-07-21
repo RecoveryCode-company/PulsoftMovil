@@ -1,12 +1,31 @@
-// Analytic.js
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button, StyleSheet, FlatList, ActivityIndicator, Alert, Image } from 'react-native'; // Importa Image
-import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import {
+  View,
+  Text,
+  Button,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  TouchableOpacity
+} from 'react-native';
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  doc,
+  getDoc
+} from 'firebase/firestore';
 import { auth } from '../firebaseConfig';
 
-// Define tus umbrales de trofeos y sus imágenes
 const TROPHY_LEVELS = [
-  { notesRequired: 1, image: require('../assets/trofeo1.png') }, // Asegúrate de tener estas imágenes
+  { notesRequired: 1, image: require('../assets/trofeo1.png') },
   { notesRequired: 5, image: require('../assets/trofeo2.png') },
   { notesRequired: 10, image: require('../assets/trofeo3.png') },
 ];
@@ -18,11 +37,12 @@ function Analytic({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
   const [currentPatientId, setCurrentPatientId] = useState(null);
-  const [currentPatientNotesCount, setCurrentPatientNotesCount] = useState(0); // Nuevo estado para el contador de notas
+  const [currentPatientNotesCount, setCurrentPatientNotesCount] = useState(0);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedContent, setSelectedContent] = useState('');
 
   useEffect(() => {
     const currentUser = auth.currentUser;
-
     if (!currentUser) {
       Alert.alert('Error', 'No hay usuario autenticado. Por favor, inicia sesión.');
       navigation.replace('Login');
@@ -33,7 +53,7 @@ function Analytic({ route, navigation }) {
 
     const determinePatientAndFetchNotes = async () => {
       let patientToFetchUid = null;
-      let unsubscribeNotesCount = () => {}; // Variable para el listener del contador
+      let unsubscribeNotesCount = () => {};
 
       try {
         const userDocRef = doc(db, 'users', currentUser.uid);
@@ -45,6 +65,7 @@ function Analytic({ route, navigation }) {
           setLoading(false);
           return;
         }
+
         const userData = userDocSnap.data();
         setUserRole(userData.user_type);
 
@@ -73,7 +94,6 @@ function Analytic({ route, navigation }) {
           return;
         }
 
-        // Escuchar notas
         const notesCollectionRef = collection(doc(db, 'users', patientToFetchUid), 'notes');
         const q = query(notesCollectionRef, orderBy('createdAt', 'desc'));
 
@@ -93,7 +113,6 @@ function Analytic({ route, navigation }) {
           setLoading(false);
         });
 
-        // **NUEVO: Escuchar cambios en el contador de notas del paciente que se está viendo**
         const patientDocRef = doc(db, 'users', patientToFetchUid);
         unsubscribeNotesCount = onSnapshot(patientDocRef, (docSnap) => {
           if (docSnap.exists()) {
@@ -108,7 +127,7 @@ function Analytic({ route, navigation }) {
 
         return () => {
           unsubscribeNotes();
-          unsubscribeNotesCount(); // Limpiar el listener del contador de notas
+          unsubscribeNotesCount();
         };
       } catch (error) {
         console.error('Error en determinePatientAndFetchNotes:', error);
@@ -121,7 +140,6 @@ function Analytic({ route, navigation }) {
     determinePatientAndFetchNotes();
   }, [patientUidFromNavigation, navigation]);
 
-  // Función para obtener la imagen del trofeo (igual que en Dashboards.js)
   const getTrophyImage = (notesCount) => {
     const achievedTrophy = TROPHY_LEVELS
       .filter(level => notesCount >= level.notesRequired)
@@ -134,7 +152,7 @@ function Analytic({ route, navigation }) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Cargando tus notas...</Text>
+        <Text style={styles.loadingText}>Cargando tus análisis...</Text>
       </View>
     );
   }
@@ -144,10 +162,9 @@ function Analytic({ route, navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
-        {userRole === 'caregiver' ? 'Notas del Paciente' : 'Mis Notas Clínicas'}
+        {userRole === 'caregiver' ? 'Análisis del Paciente' : 'Mis Notas'}
       </Text>
 
-      {/* **NUEVO: Mostrar el trofeo aquí si existe** */}
       {trophyImage && (
         <View style={styles.trophyContainer}>
           <Text style={styles.trophyTitle}>¡Trofeo de Notas!</Text>
@@ -164,30 +181,52 @@ function Analytic({ route, navigation }) {
         </Text>
       ) : (
         <FlatList
-          data={notes}
+          data={
+            userRole === 'caregiver'
+              ? notes.filter(item => item.analisis_IA)
+              : notes.filter(item => item.content)
+          }
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View style={styles.noteItem}>
-              <Text style={styles.noteContent}>{item.content}</Text>
-              {item.createdAt && (
-                <Text style={styles.noteDate}>
-                  {new Date(item.createdAt.toDate()).toLocaleString()}
+              <TouchableOpacity
+                style={styles.analysisButton}
+                onPress={() => {
+                  setSelectedContent(
+                    userRole === 'caregiver' ? item.analisis_IA : item.content
+                  );
+                  setModalVisible(true);
+                }}
+              >
+                <Text style={styles.analysisButtonText}>
+                  {userRole === 'caregiver' ? 'Ver análisis completo' : 'Ver nota completa'}
                 </Text>
-              )}
-              {item.analysis && (
-                <View style={styles.analysisContainer}>
-                  <Text style={styles.analysisTitle}>Análisis IA:</Text>
-                  <Text style={styles.analysisText}>{item.analysis}</Text>
-                </View>
-              )}
+              </TouchableOpacity>
             </View>
           )}
           contentContainerStyle={styles.notesList}
         />
       )}
 
-      <View style={styles.buttonSpacer} />
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContainer}>
+            <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+              <Text style={styles.modalText}>{selectedContent}</Text>
+            </ScrollView>
+            <Pressable style={styles.modalCloseButton} onPress={() => setModalVisible(false)}>
+              <Text style={styles.modalCloseButtonText}>Cerrar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
+      <View style={styles.buttonSpacer} />
       {userRole === 'patient' ? (
         <Button
           title='Volver a la sección de notas'
@@ -201,7 +240,6 @@ function Analytic({ route, navigation }) {
           color="#28a745"
         />
       ) : null}
-
       <View style={styles.buttonSpacer} />
     </View>
   );
@@ -216,7 +254,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
     marginBottom: 30,
     color: '#2c3e50',
@@ -236,7 +274,6 @@ const styles = StyleSheet.create({
   },
   notesList: {
     width: '100%',
-    paddingHorizontal: 5,
     paddingBottom: 20,
   },
   noteItem: {
@@ -244,58 +281,26 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 15,
     marginBottom: 15,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 8,
+    elevation: 4,
   },
-  noteContent: {
+  analysisButton: {
+    backgroundColor: '#007bff',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  analysisButtonText: {
+    color: '#fff',
     fontSize: 16,
-    color: '#333',
-    marginBottom: 8,
+    textAlign: 'center',
   },
-  noteDate: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'right',
-  },
-  buttonSpacer: {
-    height: 20,
-  },
-  analysisContainer: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  analysisTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#007bff',
-    marginBottom: 5,
-  },
-  analysisText: {
-    fontSize: 14,
-    color: '#555',
-  },
-  // Estilos para el trofeo
   trophyContainer: {
     alignItems: 'center',
-    marginTop: 10, // Un poco menos de margen si va antes de las notas
     marginBottom: 20,
     padding: 15,
     backgroundColor: '#e6ffe6',
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#aaffaa',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
     elevation: 5,
   },
   trophyTitle: {
@@ -313,6 +318,40 @@ const styles = StyleSheet.create({
   trophyText: {
     fontSize: 14,
     color: '#555',
+  },
+  buttonSpacer: {
+    height: 20,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+  backgroundColor: '#fff',
+  borderRadius: 10,
+  padding: 20,
+  maxHeight: '90%',
+  width: '100%',
+  alignSelf: 'center',
+  flexGrow: 1,
+  },
+  modalText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
+  modalCloseButton: {
+    marginTop: 20,
+    backgroundColor: '#007bff',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  modalCloseButtonText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 16,
   },
 });
 

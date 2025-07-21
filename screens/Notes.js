@@ -1,15 +1,12 @@
-// Notes.js
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { auth, firestore } from '../firebaseConfig';
-import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore'; // Importa updateDoc e increment
-import axios from 'axios';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 
 function Notes({ navigation }) {
   const [noteText, setNoteText] = useState('');
   const [user, setUser] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     const currentUser = auth.currentUser;
@@ -19,20 +16,6 @@ function Notes({ navigation }) {
       return;
     }
     setUser(currentUser);
-
-    const fetchUserRole = async () => {
-      try {
-        const userDocRef = doc(firestore, 'users', currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          setUserRole(userDocSnap.data().user_type);
-        }
-      } catch (error) {
-        console.error("Error al obtener el rol del usuario:", error);
-        Alert.alert("Error", "No se pudo cargar tu rol de usuario.");
-      }
-    };
-    fetchUserRole();
   }, []);
 
   const onChangeNoteText = (text) => {
@@ -52,40 +35,20 @@ function Notes({ navigation }) {
 
     setIsSaving(true);
     try {
-      let aiAnalysis = 'Análisis no disponible';
-
-      // **Tu lógica de llamada a la API de IA (no se modifica aquí)**
-      try {
-        const aiResponse = await axios.post('YOUR_AI_API_ENDPOINT/analyze-note', {
-          noteContent: noteText,
-          patientId: user.uid,
-        });
-        if (aiResponse.data && aiResponse.data.analysis) {
-          aiAnalysis = aiResponse.data.analysis;
-        } else {
-          console.warn("La respuesta de la IA no contiene el campo 'analysis' esperado.");
-        }
-      } catch (aiError) {
-        console.error("Error al comunicarse con la API de IA:", aiError);
-        Alert.alert("Advertencia", "No se pudo obtener el análisis de la IA para esta nota.");
-      }
-
-      // Guardar la nota en Firestore
+      // Solo guarda la nota; la función en Firebase se encargará del análisis
       await addDoc(collection(firestore, 'users', user.uid, 'notes'), {
         content: noteText,
-        analysis: aiAnalysis,
         createdAt: serverTimestamp(),
       });
 
-      // **NUEVO: Actualizar el contador de notas en el documento del usuario**
+      // Actualiza el contador de notas
       const userDocRef = doc(firestore, 'users', user.uid);
       await updateDoc(userDocRef, {
-        notesCount: increment(1) // Incrementa el contador de notas
+        notesCount: increment(1)
       });
 
-      Alert.alert('Éxito', 'Nota guardada y analizada correctamente.');
+      Alert.alert('Éxito', 'Nota guardada. El análisis será generado automáticamente.');
       setNoteText('');
-      navigation.replace('Analytic');
     } catch (error) {
       console.error("Error al guardar la nota o actualizar el contador: ", error);
       Alert.alert('Error', 'No se pudo guardar la nota. Inténtalo de nuevo.');
@@ -102,7 +65,7 @@ function Notes({ navigation }) {
         onChangeText={onChangeNoteText}
         value={noteText}
         placeholder='Escribe tu nota aquí...'
-        multiline={true}
+        multiline
         numberOfLines={6}
         placeholderTextColor="#888"
       />
@@ -119,7 +82,7 @@ function Notes({ navigation }) {
           onPress={() => navigation.replace('Analytic')}
           color="#007bff"
         />
-        <View style={styles.buttonaPocer} />
+        <View style={styles.buttonSpacer} />
         <Button
           title='Volver al inicio'
           onPress={() => navigation.replace('Dashboards')}
@@ -171,9 +134,6 @@ const styles = StyleSheet.create({
   },
   buttonSpacer: {
     height: 15,
-  },
-  buttonaPocer: {
-    height: 10,
   }
 });
 

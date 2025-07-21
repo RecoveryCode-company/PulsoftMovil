@@ -27,8 +27,6 @@ function Dashboards({ navigation }) {
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (currentUser) => {
       if (!currentUser) {
-        // Si no hay usuario autenticado (incluye después de cerrar sesión),
-        // reiniciamos estados y navegamos a login.
         setCurrentAuthUserUid(null); // Limpiar UID del usuario autenticado
         setUserRole(null);
         setLinkedPatients([]);
