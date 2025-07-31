@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { registerForPushNotificationsAsync } from './useNotifications';
 
 import WelcomeScreen from './screens/WelcomeScreen.js';
 import LoginScreen from './screens/LoginScreen.js';
@@ -14,6 +15,10 @@ import CaregiverLink from './screens/CaregiverLinkScreen.js';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  useEffect(() => {
+    registerForPushNotificationsAsync();
+  }, []);
+
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Login">

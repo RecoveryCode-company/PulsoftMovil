@@ -20,7 +20,6 @@ function Dashboards({ navigation }) {
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [currentPatientNotesCount, setCurrentPatientNotesCount] = useState(0);
   const [panicModeState, setPanicModeState] = useState(false);
-  // NUEVO ESTADO: Para guardar el UID del usuario autenticado
   const [currentAuthUserUid, setCurrentAuthUserUid] = useState(null); 
 
   // useEffect para manejar la autenticación y la configuración inicial de roles/pacientes
@@ -37,7 +36,6 @@ function Dashboards({ navigation }) {
         return;
       }
 
-      // Si hay un usuario, guardamos su UID y procedemos a cargar sus datos
       setCurrentAuthUserUid(currentUser.uid); // Guardar UID del usuario autenticado
 
       try {
@@ -93,7 +91,6 @@ function Dashboards({ navigation }) {
     return () => unsubscribeAuth(); 
   }, []); 
 
-  // MODIFICADO useEffect para manejar las suscripciones a Realtime Database y Firestore
   useEffect(() => {
     let unsubscribeRealtime = () => {};
     let unsubscribeNotesCount = () => {};
