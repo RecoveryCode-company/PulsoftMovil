@@ -4,7 +4,7 @@
     "slug": "Pulsoft",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo1.png",
+    "icon": "./assets/favicon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -19,7 +19,6 @@
     "android": {
       "package": "com.RecoveryCode.Pulsoft",
       "googleServicesFile": "./google-services.json",
-      "useNextNotificationsApi": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -32,7 +31,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/logo1.png",
+          "icon": "./assets/favicon.png",
           "color": "#ffffff",
           "sounds": []
         }
