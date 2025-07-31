@@ -25,7 +25,8 @@
       },
       "permissions": [
         "NOTIFICATIONS"
-      ]
+      ],
+      "defaultNotificationColor": "#FFFFFF" 
     },
     "plugins": [
       [
@@ -35,7 +36,9 @@
           "color": "#ffffff",
           "sounds": []
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ],
     "web": {
       "favicon": "./assets/favicon.png"

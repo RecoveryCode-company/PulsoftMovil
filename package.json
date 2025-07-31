@@ -18,7 +18,10 @@
     "axios": "^1.10.0",
     "expo": "53.0.20",
     "expo-av": "~15.1.7",
+    "expo-dev-client": "~5.2.4",
+    "expo-device": "~7.1.4",
     "expo-linear-gradient": "~14.1.5",
+    "expo-notifications": "~0.31.4",
     "expo-status-bar": "~2.2.3",
     "firebase": "^11.10.0",
     "react": "19.0.0",
@@ -27,13 +30,17 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-video": "^6.16.0",
-    "react-native-web": "^0.20.0",
-    "expo-notifications": "~0.31.4",
-    "expo-device": "~7.1.4",
-    "expo-dev-client": "~5.2.4"
+    "react-native-web": "^0.20.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "listUnknownPackages": false
+      }
+    }
+  }
 }
