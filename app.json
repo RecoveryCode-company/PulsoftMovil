@@ -4,7 +4,7 @@
     "slug": "Pulsoft",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon1024.png",
+    "icon": "./assets/logo1.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
