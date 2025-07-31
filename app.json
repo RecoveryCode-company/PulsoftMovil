@@ -6,37 +6,41 @@
     "orientation": "portrait",
     "icon": "./assets/icon1024.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.RecoveryCode.Pulsoft"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png"
-      },
-      "edgeToEdgeEnabled": true,
+      "package": "com.RecoveryCode.Pulsoft",
       "googleServicesFile": "./google-services.json",
       "useNextNotificationsApi": true,
-      "package": "com.RecoveryCode.Pulsoft"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "NOTIFICATIONS"
+      ]
     },
     "plugins": [
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
-          "color": "#ffffff"
+          "icon": "./assets/icon1024.png",
+          "color": "#ffffff",
+          "sounds": []
         }
       ]
     ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
     "extra": {
       "eas": {
         "projectId": "e575dd1c-7e66-4c91-b1ed-dd4347bb9e78"
