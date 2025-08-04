@@ -1,14 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
-// Carga de fuentes
-import * as Font from 'expo-font';
-import AppLoading from 'expo-app-loading';
+import { useFonts } from 'expo-font';
 
 import WelcomeScreen from './screens/WelcomeScreen.js';
 import LoginScreen from './screens/LoginScreen.js';
-import RegisterScreen from './screens/regisyteristerScreen.js';
+import RegisterScreen from './screens/RegisterScreen.js';
 import Notes from './screens/Notes.js';
 import Analytic from './screens/analytic.js';
 import Dashboards from './screens/dashboards.js';
@@ -18,26 +15,16 @@ import CaregiverLink from './screens/CaregiverLinkScreen.js';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-
-  const loadFonts = () => {
-    return Font.loadAsync({
-      'Lufga-Regular': require('./assets/fonts/Lufga-Regular.ttf'),
-      'Lufga-Bold': require('./assets/fonts/Lufga-Bold.ttf'),
-      'Lufga-Medium': require('./assets/fonts/Lufga-Medium.ttf'),
-      'Lufga-Light': require('./assets/fonts/Lufga-Light.ttf'),
-      // Agrega aquí más variantes si las tienes
-    });
-  };
+  const [fontsLoaded] = useFonts({
+    'Lufga-Regular': require('./assets/fonts/Lufga-Regular.ttf'),
+    'Lufga-Bold': require('./assets/fonts/Lufga-Bold.ttf'),
+    'Lufga-Medium': require('./assets/fonts/Lufga-Medium.ttf'),
+    'Lufga-Light': require('./assets/fonts/Lufga-Light.ttf'),
+    // Agrega aquí más variantes si las tienes
+  });
 
   if (!fontsLoaded) {
-    return (
-      <AppLoading
-        startAsync={loadFonts}
-        onFinish={() => setFontsLoaded(true)}
-        onError={console.warn}
-      />
-    );
+    return null;
   }
 
   return (
