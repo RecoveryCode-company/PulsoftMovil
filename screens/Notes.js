@@ -1,9 +1,8 @@
 // Notes.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Button, StyleSheet, TextInput, Alert } from 'react-native';
 import { auth, firestore } from '../firebaseConfig';
-import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore'; // Importa updateDoc e increment
-import axios from 'axios';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 
 function Notes({ navigation }) {
   const [noteText, setNoteText] = useState('');
@@ -52,26 +51,10 @@ function Notes({ navigation }) {
 
     setIsSaving(true);
     try {
-      let aiAnalysis = 'Análisis no disponible';
-
-      try {
-        const aiResponse = await axios.post('YOUR_AI_API_ENDPOINT/analyze-note', {
-          noteContent: noteText,
-          patientId: user.uid,
-        });
-        if (aiResponse.data && aiResponse.data.analysis) {
-          aiAnalysis = aiResponse.data.analysis;
-        } else {
-          console.warn("La respuesta de la IA no contiene el campo 'analysis' esperado.");
-        }
-      } catch (aiError) {
-        console.error("Error al comunicarse con la API de IA:", aiError);
-        Alert.alert("Advertencia", "No se pudo obtener el análisis de la IA para esta nota.");
-      }
-
+      // Guardar la nota en Firestore sin enviar a API externa
       await addDoc(collection(firestore, 'users', user.uid, 'notes'), {
         content: noteText,
-        analysis: aiAnalysis,
+        analysis: 'Pendiente de análisis', // Valor temporal, el análisis se hará luego
         createdAt: serverTimestamp(),
       });
 
@@ -80,7 +63,7 @@ function Notes({ navigation }) {
         notesCount: increment(1)
       });
 
-      Alert.alert('Éxito', 'Nota guardada y analizada correctamente.');
+      Alert.alert('Éxito', 'Nota guardada correctamente.');
       setNoteText('');
       navigation.replace('Analytic');
     } catch (error) {

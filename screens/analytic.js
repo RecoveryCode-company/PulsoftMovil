@@ -1,4 +1,3 @@
-// Analytic.js
 import React, { useEffect, useState } from 'react';
 import { View, Text, Button, StyleSheet, FlatList, ActivityIndicator, Alert, Image } from 'react-native';
 import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
@@ -171,10 +170,10 @@ function Analytic({ route, navigation }) {
                   {new Date(item.createdAt.toDate()).toLocaleString()}
                 </Text>
               )}
-              {item.analysis && (
+              {item.analisis_IA && (
                 <View style={styles.analysisContainer}>
                   <Text style={styles.analysisTitle}>Análisis IA:</Text>
-                  <Text style={styles.analysisText}>{item.analysis}</Text>
+                  <Text style={styles.analysisText}>{item.analisis_IA}</Text>
                 </View>
               )}
             </View>

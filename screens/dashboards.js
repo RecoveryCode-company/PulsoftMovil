@@ -1,21 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Button, Dimensions, FlatList, ActivityIndicator, Alert, Image } from 'react-native';
-import { COLORS } from './colors';
+import { View, Text, StyleSheet, Button, ActivityIndicator, Alert, FlatList, TouchableOpacity, Image, Modal } from 'react-native';
 import { ref, onValue, update, set } from 'firebase/database';
 import { doc, getDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { auth, database, firestore } from '../firebaseConfig';
 import { signOut } from 'firebase/auth';
 
+// Define tus umbrales de trofeos y sus imágenes
 const TROPHY_LEVELS = [
   { notesRequired: 1, image: require('../assets/trofeo1.png') },
   { notesRequired: 5, image: require('../assets/trofeo2.png') },
   { notesRequired: 10, image: require('../assets/trofeo3.png') },
 ];
 
-const { width } = Dimensions.get('window');
-
 function Dashboards({ navigation }) {
-  
   const [userRole, setUserRole] = useState(null);
   const [linkedPatients, setLinkedPatients] = useState([]);
   const [currentPatientData, setCurrentPatientData] = useState(null);
@@ -25,19 +22,25 @@ function Dashboards({ navigation }) {
   const [panicModeState, setPanicModeState] = useState(false);
   const [currentAuthUserUid, setCurrentAuthUserUid] = useState(null);
 
+  // Estado para mostrar alerta emergente
+  const [showAlertModal, setShowAlertModal] = useState(false);
+
+  // useEffect para manejar la autenticación y la configuración inicial de roles/pacientes
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (currentUser) => {
       if (!currentUser) {
-        setCurrentAuthUserUid(null);
+        setCurrentAuthUserUid(null); // Limpiar UID del usuario autenticado
         setUserRole(null);
         setLinkedPatients([]);
         setSelectedPatientId(null);
         setCurrentPatientData(null);
-        setLoading(true); 
+        setLoading(true);
         navigation.replace('Login');
         return;
       }
-      setCurrentAuthUserUid(currentUser.uid);
+
+      setCurrentAuthUserUid(currentUser.uid); // Guardar UID del usuario autenticado
+
       try {
         const userDocRef = doc(firestore, 'users', currentUser.uid);
         const userDocSnap = await getDoc(userDocRef);
@@ -73,7 +76,7 @@ function Dashboards({ navigation }) {
             if (fetchedPatients.length > 0) {
               setSelectedPatientId(fetchedPatients[0].uid);
             } else {
-              setLoading(false); 
+              setLoading(false);
             }
           }
         } else {
@@ -88,18 +91,19 @@ function Dashboards({ navigation }) {
       }
     });
 
-    return () => unsubscribeAuth(); 
-  }, []); 
+    return () => unsubscribeAuth();
+  }, []);
 
   useEffect(() => {
     let unsubscribeRealtime = () => {};
     let unsubscribeNotesCount = () => {};
-    let unsubscribeInitialCheck = () => {}; 
+    let unsubscribeInitialCheck = () => {};
 
-    if (currentAuthUserUid && selectedPatientId) { 
+    // Usar currentAuthUserUid en lugar de auth.currentUser
+    if (currentAuthUserUid && selectedPatientId) {
       const patientRef = ref(database, `patients/${selectedPatientId}`);
 
-      // Inicialización del nodo si no existe
+      // Lógica para asegurar la existencia e inicialización del nodo del paciente
       unsubscribeInitialCheck = onValue(patientRef, (snapshot) => {
         const currentData = snapshot.val();
         if (!currentData) {
@@ -111,20 +115,28 @@ function Dashboards({ navigation }) {
           }).then(() => {
             console.log(`Nodo para ${selectedPatientId} creado/inicializado en Realtime Database.`);
           }).catch(e => console.error("Error al crear/inicializar nodo de paciente:", e));
-        } else if (currentData.panicMode === undefined) { 
-          update(patientRef, { panicMode: false }).catch(e => console.error("Error al inicializar panicMode:", e)); 
+        } else if (currentData.panicMode === undefined) {
+          update(patientRef, { panicMode: false }).catch(e => console.error("Error al inicializar panicMode:", e));
         }
       }, { onlyOnce: true });
 
-      unsubscribeRealtime = onValue(patientRef, (snapshot) => {   // Listener en tiempo real
+      // Ahora, nos suscribimos a los datos en tiempo real (incluido panicMode)
+      unsubscribeRealtime = onValue(patientRef, (snapshot) => {
         if (snapshot.exists()) {
           const d = snapshot.val();
           setCurrentPatientData({
-            cardiovascular: d.cardiovascular || 0, 
-            sudor: d.sudor || 0, 
-            temperatura: d.temperatura || 0, 
+            cardiovascular: d.cardiovascular || 0,
+            sudor: d.sudor || 0,
+            temperatura: d.temperatura || 0,
           });
-          setPanicModeState(d.panicMode || false); 
+          setPanicModeState(d.panicMode || false);
+
+          if (d.cardiovascular >= 100 && d.sudor >= 4000 && d.temperatura >= 15) {
+            setShowAlertModal(true);
+          } else {
+            setShowAlertModal(false);
+          }
+
         } else {
           setCurrentPatientData({
             cardiovascular: 0,
@@ -132,6 +144,7 @@ function Dashboards({ navigation }) {
             temperatura: 0,
           });
           setPanicModeState(false);
+          setShowAlertModal(false);
         }
         setLoading(false);
       }, (error) => {
@@ -140,6 +153,7 @@ function Dashboards({ navigation }) {
         setLoading(false);
       });
 
+      // Suscripción al contador de notas de Firestore
       const patientDocRef = doc(firestore, 'users', selectedPatientId);
       unsubscribeNotesCount = onSnapshot(patientDocRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -152,18 +166,20 @@ function Dashboards({ navigation }) {
         console.error("Error al obtener el contador de notas:", error);
       });
 
+      // Función de limpieza: Se ejecuta cuando el componente se desmonta o las dependencias cambian
       return () => {
         unsubscribeInitialCheck();
         unsubscribeRealtime();
         unsubscribeNotesCount();
       };
     } else {
+      // Si no hay currentAuthUserUid o selectedPatientId, aseguramos que loading esté en false
       if (userRole === 'caregiver' && linkedPatients.length === 0) {
         setLoading(false);
       } else if (currentAuthUserUid && !selectedPatientId && userRole === 'patient') {
-        setLoading(true); 
+        setLoading(true);
       } else {
-        setLoading(false); 
+        setLoading(false);
       }
     }
   }, [currentAuthUserUid, selectedPatientId, userRole, linkedPatients]);
@@ -193,9 +209,9 @@ function Dashboards({ navigation }) {
 
     const patientPanicRef = ref(database, `patients/${selectedPatientId}`);
     try {
-      const newState = !panicModeState; 
+      const newState = !panicModeState;
       await update(patientPanicRef, {
-        panicMode: newState 
+        panicMode: newState
       });
       Alert.alert("Botón de Pánico", `Estado de pánico para ${selectedPatientId} establecido en: ${newState ? 'ACTIVADO' : 'DESACTIVADO'}`);
     } catch (error) {
@@ -215,7 +231,7 @@ function Dashboards({ navigation }) {
     </TouchableOpacity>
   );
 
-  if (loading) {   // DISEÑO
+  if (loading) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#007bff" />
@@ -228,9 +244,8 @@ function Dashboards({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Dashboard</Text>
-      
-      {/* Lista de pacientes para el cuidador */}
+      <Text style={styles.title}>Monitoreo</Text>
+
       {userRole === 'caregiver' && linkedPatients.length > 0 && (
         <View style={styles.patientListContainer}>
           <Text style={styles.sectionTitle}>Tus Pacientes:</Text>
@@ -245,97 +260,72 @@ function Dashboards({ navigation }) {
         </View>
       )}
 
-      {/* Gráficas y datos en tiempo real */}
-      <View style={styles.graphsRow}>
-        <View style={styles.graphCard}>
-          <Text style={styles.graphTitle}>Cardiovascular</Text>
-          <View style={styles.graphPlaceholder}>
-            <Text style={styles.graphPlaceholderText}>
-              {currentPatientData ? currentPatientData.cardiovascular : '[Sin datos]'}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.graphCard}>
-          <Text style={styles.graphTitle}>Sudor</Text>
-          <View style={styles.graphPlaceholder}>
-            <Text style={styles.graphPlaceholderText}>
-              {currentPatientData ? currentPatientData.sudor : '[Sin datos]'}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.graphCard}>
-          <Text style={styles.graphTitle}>Temperatura</Text>
-          <View style={styles.graphPlaceholder}>
-            <Text style={styles.graphPlaceholderText}>
-              {currentPatientData ? currentPatientData.temperatura : '[Sin datos]'}
-            </Text>
-          </View>
-        </View>
-      </View>
+      {selectedPatientId && currentPatientData ? (
+        <>
+          <Text style={styles.subtitle}>Datos en tiempo real:</Text>
+          <Text style={styles.dataText}>Cardiovascular: {currentPatientData.cardiovascular}</Text>
+          <Text style={styles.dataText}>Sudor: {currentPatientData.sudor}</Text>
+          <Text style={styles.dataText}>Temperatura: {currentPatientData.temperatura}</Text>
 
-      {/* Trofeo de notas */}
-      {trophyImage && (
-        <View style={styles.trophyContainer}>
-          <Text style={styles.trophyTitle}>¡Trofeo de Notas!</Text>
-          <Image source={trophyImage} style={styles.trophyImage} />
-          <Text style={styles.trophyText}>Llevas {currentPatientNotesCount} notas escritas.</Text>
-        </View>
-      )}
+          {trophyImage && (
+            <View style={styles.trophyContainer}>
+              <Text style={styles.trophyTitle}>¡Trofeo de Notas!</Text>
+              <Image source={trophyImage} style={styles.trophyImage} />
+              <Text style={styles.trophyText}>Llevas {currentPatientNotesCount} notas escritas.</Text>
+            </View>
+          )}
 
-      {/* Botón de pánico y acciones adicionales */}
-      <View style={styles.actions}>
-        {selectedPatientId && (
+          <View style={styles.buttonSpacer} />
           <Button
             title={panicModeState ? "Desactivar Pánico" : "Activar Pánico"}
             onPress={togglePanicButton}
             color={panicModeState ? "#ffc107" : "#dc3545"}
           />
-        )}
+        </>
+      ) : (
+        <Text style={styles.noPatientText}>
+          {userRole === 'caregiver' ? 'No tienes pacientes vinculados o selecciona uno.' : 'Cargando datos del paciente...'}
+        </Text>
+      )}
 
-        {userRole === 'patient' && (
-          <>
-            <View style={styles.buttonSpacer} />
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('Notes')}
-            >
-              <Text style={styles.actionButtonText}>Ir a Notas</Text>
-            </TouchableOpacity>
-            <View style={styles.buttonSpacer} />
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('PatientToken')}
-            >
-              <Text style={styles.actionButtonText}>Ver código de cuidador</Text>
-            </TouchableOpacity>
-          </>
-        )}
-        {userRole === 'caregiver' && (
-          <>
-            <View style={styles.buttonSpacer} />
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('CaregiverLink')}
-            >
-              <Text style={styles.actionButtonText}>Vincular con paciente</Text>
-            </TouchableOpacity>
-            <View style={styles.buttonSpacer} />
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => {
-                if (selectedPatientId) {
-                  navigation.navigate('Analytic', { patientUid: selectedPatientId });
-                } else {
-                  Alert.alert("Atención", "Selecciona un paciente para ver sus notas.");
-                }
-              }}
-            >
-              <Text style={styles.actionButtonText}>Notas del paciente</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-      {/* Cerrar sesión */}
+      <View style={styles.buttonSpacer} />
+
+      {userRole === 'patient' ? (
+        <>
+          <Button
+            title="Escribir nota"
+            onPress={() => navigation.navigate('Notes')}
+            color="#007bff"
+          />
+          <View style={styles.buttonSpacer} />
+          <Button
+            title="Ver código de cuidador"
+            onPress={() => navigation.navigate('PatientToken')}
+            color="#6c757d"
+          />
+        </>
+      ) : userRole === 'caregiver' ? (
+        <>
+          <Button
+            title="Vincular con paciente"
+            onPress={() => navigation.navigate('CaregiverLink')}
+            color="#28a745"
+          />
+          <View style={styles.buttonSpacer} />
+          <Button
+            title="Notas del paciente"
+            onPress={() => {
+              if (selectedPatientId) {
+                navigation.navigate('Analytic', { patientUid: selectedPatientId });
+              } else {
+                Alert.alert("Atención", "Selecciona un paciente para ver sus notas.");
+              }
+            }}
+            color="#007bff"
+          />
+        </>
+      ) : null}
+
       <View style={styles.logoutButtonContainer}>
         <Button
           title="Cerrar Sesión"
@@ -343,6 +333,22 @@ function Dashboards({ navigation }) {
           color="#dc3545"
         />
       </View>
+
+      {/* Modal de alerta emergente */}
+      <Modal
+        visible={showAlertModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAlertModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.alertTitle}>Alerta</Text>
+            <Text style={styles.alertMessage}>Un ataque de ansiedad detectado</Text>
+            <Button title="Cerrar" onPress={() => setShowAlertModal(false)} color="#ff6666" />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -350,83 +356,29 @@ function Dashboards({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    alignItems: 'center',
-    padding: 20,
+    padding: 16,
+    backgroundColor: '#fff',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 32,
-    color: COLORS.primary,
-    fontWeight: 'bold',
-    marginBottom: 28,
-    letterSpacing: 1,
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#2C3E50',
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 10,
+    color: '#34495E',
     textAlign: 'center',
   },
-  graphsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: 24,
-  },
-  graphCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 16,
-    alignItems: 'center',
-    width: width * 0.28,
-    minHeight: 130,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.11,
-    shadowRadius: 11,
-    elevation: 5,
-    marginHorizontal: 3,
-  },
-  graphTitle: {
-    fontSize: 15,
-    color: COLORS.primary,
-    fontWeight: '700',
+  dataText: {
+    fontSize: 16,
     marginBottom: 8,
-  },
-  graphPlaceholder: {
-    backgroundColor: COLORS.accent,
-    width: '100%',
-    height: 70,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  graphPlaceholderText: {
-    color: COLORS.secondary,
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontStyle: 'italic',
-  },
-  actions: {
-    marginTop: 24,
-    width: '100%',
-    alignItems: 'center',
-  },
-  actionButton: {
-    backgroundColor: COLORS.coral,
-    borderRadius: 20,
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    width: width * 0.7,
-    alignItems: 'center',
-    shadowColor: COLORS.coral,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.16,
-    shadowRadius: 12,
-    elevation: 4,
-    marginBottom: 10,
-  },
-  actionButtonText: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontWeight: 'bold',
-    letterSpacing: 0.6,
+    color: '#2C3E50',
+    textAlign: 'center',
   },
   buttonSpacer: {
     height: 15,
@@ -507,6 +459,37 @@ const styles = StyleSheet.create({
   trophyText: {
     fontSize: 14,
     color: '#555',
+  },
+  // Estilos para el modal de alerta emergente
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#b22222', // rojo oscuro
+    padding: 30,
+    borderRadius: 15,
+    width: '80%',
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 5,
+    elevation: 10,
+  },
+  alertTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  alertMessage: {
+    fontSize: 18,
+    color: '#fff',
+    marginBottom: 20,
+    textAlign: 'center',
   },
 });
 

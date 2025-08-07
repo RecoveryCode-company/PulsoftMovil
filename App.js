@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useFonts } from 'expo-font';
@@ -15,17 +15,6 @@ import CaregiverLink from './screens/CaregiverLinkScreen.js';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
-    'Lufga-Regular': require('./assets/fonts/Lufga-Regular.ttf'),
-    'Lufga-Bold': require('./assets/fonts/Lufga-Bold.ttf'),
-    'Lufga-Medium': require('./assets/fonts/Lufga-Medium.ttf'),
-    'Lufga-Light': require('./assets/fonts/Lufga-Light.ttf'),
-  });
-
-  if (!fontsLoaded) {
-    return null;
-  }
-
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
