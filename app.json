@@ -23,7 +23,8 @@
       "permissions": [
         "NOTIFICATIONS"
       ],
-      "defaultNotificationColor": "#FFFFFF" 
+      "defaultNotificationColor": "#FFFFFF",
+      "package": "com.alonsin21.Pulsoft"
     },
     "plugins": [
       [
@@ -39,6 +40,11 @@
     ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e575dd1c-7e66-4c91-b1ed-dd4347bb9e78"
+      }
     }
   }
 }
