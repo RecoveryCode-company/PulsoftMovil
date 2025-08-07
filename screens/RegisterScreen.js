@@ -27,19 +27,17 @@ function RegisterScreen({ navigation }) {
 
     setLoading(true);
     try {
-      // 1. Registrar usuario en Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Guardar rol y token (si aplica) en Firestore
       const firestoreUserData = {
-        user_type: role, // Usamos 'user_type' para el rol
+        user_type: role,
         email: email,
         createdAt: serverTimestamp(),
       };
 
       if (role === 'patient') {
-        firestoreUserData.pairingToken = generateToken(6); // Generar token para pacientes
+        firestoreUserData.pairingToken = generateToken(6);
       }
 
       await setDoc(doc(firestore, 'users', user.uid), firestoreUserData);

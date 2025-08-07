@@ -22,7 +22,7 @@ function PatientTokenScreen({ navigation }) {
         const snap = await getDoc(userDocRef);
         if (snap.exists()) {
           const userData = snap.data();
-          if (userData.user_type === 'patient') { // Usa 'user_type' para el rol
+          if (userData.user_type === 'patient') {
             setToken(userData.pairingToken || 'No disponible');
           } else {
             Alert.alert('Acceso Denegado', 'Esta pantalla es solo para usuarios tipo Paciente.');

@@ -140,7 +140,7 @@ function Dashboards({ navigation }) {
         setLoading(false);
       });
 
-      const patientDocRef = doc(firestore, 'users', selectedPatientId);   // Listener para el contador de notas
+      const patientDocRef = doc(firestore, 'users', selectedPatientId);
       unsubscribeNotesCount = onSnapshot(patientDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();

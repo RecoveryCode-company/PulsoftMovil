@@ -40,7 +40,6 @@ function CaregiverLinkScreen({ navigation }) {
       const patientDoc = querySnapshot.docs[0];
       const patientUid = patientDoc.id;
 
-      // 2. Verificar que el cuidador no esté ya vinculado a este paciente
       const caregiverPatientLinksRef = collection(firestore, 'caregiverPatientLinks');
       const existingLinkQuery = query(
         caregiverPatientLinksRef,
@@ -56,7 +55,6 @@ function CaregiverLinkScreen({ navigation }) {
         return;
       }
 
-      // 3. Crear el enlace en la colección caregiverPatientLinks en Firestore
       await addDoc(caregiverPatientLinksRef, {
         caregiverUid: currentUser.uid,
         patientUid: patientUid,
@@ -64,7 +62,7 @@ function CaregiverLinkScreen({ navigation }) {
       });
 
       Alert.alert('Éxito', 'Has sido vinculado al paciente correctamente.');
-      navigation.navigate('Dashboards'); // Recarga el dashboard para mostrar el nuevo paciente
+      navigation.navigate('Dashboards');
     } catch (error) {
       console.error("Error al vincular cuidador con paciente en Firestore:", error);
       Alert.alert('Error', 'Hubo un problema al intentar vincular. Intenta más tarde.');

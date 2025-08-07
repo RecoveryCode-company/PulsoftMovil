@@ -20,7 +20,6 @@ export default function App() {
     'Lufga-Bold': require('./assets/fonts/Lufga-Bold.ttf'),
     'Lufga-Medium': require('./assets/fonts/Lufga-Medium.ttf'),
     'Lufga-Light': require('./assets/fonts/Lufga-Light.ttf'),
-    // Agrega aquí más variantes si las tienes
   });
 
   if (!fontsLoaded) {

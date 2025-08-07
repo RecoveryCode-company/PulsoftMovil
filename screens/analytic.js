@@ -1,12 +1,11 @@
 // Analytic.js
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button, StyleSheet, FlatList, ActivityIndicator, Alert, Image } from 'react-native'; // Importa Image
+import { View, Text, Button, StyleSheet, FlatList, ActivityIndicator, Alert, Image } from 'react-native';
 import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { auth } from '../firebaseConfig';
 
-// Define tus umbrales de trofeos y sus imágenes
 const TROPHY_LEVELS = [
-  { notesRequired: 1, image: require('../assets/trofeo1.png') }, // Asegúrate de tener estas imágenes
+  { notesRequired: 1, image: require('../assets/trofeo1.png') },
   { notesRequired: 5, image: require('../assets/trofeo2.png') },
   { notesRequired: 10, image: require('../assets/trofeo3.png') },
 ];
@@ -18,7 +17,7 @@ function Analytic({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
   const [currentPatientId, setCurrentPatientId] = useState(null);
-  const [currentPatientNotesCount, setCurrentPatientNotesCount] = useState(0); // Nuevo estado para el contador de notas
+  const [currentPatientNotesCount, setCurrentPatientNotesCount] = useState(0);
 
   useEffect(() => {
     const currentUser = auth.currentUser;
@@ -33,7 +32,7 @@ function Analytic({ route, navigation }) {
 
     const determinePatientAndFetchNotes = async () => {
       let patientToFetchUid = null;
-      let unsubscribeNotesCount = () => {}; // Variable para el listener del contador
+      let unsubscribeNotesCount = () => {};
 
       try {
         const userDocRef = doc(db, 'users', currentUser.uid);
@@ -93,7 +92,6 @@ function Analytic({ route, navigation }) {
           setLoading(false);
         });
 
-        // **NUEVO: Escuchar cambios en el contador de notas del paciente que se está viendo**
         const patientDocRef = doc(db, 'users', patientToFetchUid);
         unsubscribeNotesCount = onSnapshot(patientDocRef, (docSnap) => {
           if (docSnap.exists()) {
@@ -108,7 +106,7 @@ function Analytic({ route, navigation }) {
 
         return () => {
           unsubscribeNotes();
-          unsubscribeNotesCount(); // Limpiar el listener del contador de notas
+          unsubscribeNotesCount();
         };
       } catch (error) {
         console.error('Error en determinePatientAndFetchNotes:', error);
@@ -121,7 +119,6 @@ function Analytic({ route, navigation }) {
     determinePatientAndFetchNotes();
   }, [patientUidFromNavigation, navigation]);
 
-  // Función para obtener la imagen del trofeo (igual que en Dashboards.js)
   const getTrophyImage = (notesCount) => {
     const achievedTrophy = TROPHY_LEVELS
       .filter(level => notesCount >= level.notesRequired)

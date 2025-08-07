@@ -69,16 +69,15 @@ function Notes({ navigation }) {
         Alert.alert("Advertencia", "No se pudo obtener el análisis de la IA para esta nota.");
       }
 
-      await addDoc(collection(firestore, 'users', user.uid, 'notes'), {   // Guardar la nota en Firestore
+      await addDoc(collection(firestore, 'users', user.uid, 'notes'), {
         content: noteText,
         analysis: aiAnalysis,
         createdAt: serverTimestamp(),
       });
 
-      // **NUEVO: Actualizar el contador de notas en el documento del usuario**
       const userDocRef = doc(firestore, 'users', user.uid);
       await updateDoc(userDocRef, {
-        notesCount: increment(1) // Incrementa el contador de notas
+        notesCount: increment(1)
       });
 
       Alert.alert('Éxito', 'Nota guardada y analizada correctamente.');
